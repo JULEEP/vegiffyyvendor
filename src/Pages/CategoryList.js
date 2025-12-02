@@ -1,181 +1,515 @@
-import React, { useEffect, useState } from "react";
-import { FaFileCsv, FaEdit, FaTrash, FaUpload } from "react-icons/fa";
-import { CSVLink } from "react-csv";
-import * as XLSX from "xlsx";
-import axios from "axios";
-
-const dummyImage =
-  "https://play-lh.googleusercontent.com/Q06nVYXRyFRTgqVu8sNeBbHvCyJguq6aqVLWnFcNjYhUcdvvSoac56KPuOr9ZQlnldqo";
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { 
+  FaEdit, 
+  FaTrash, 
+  FaPlus, 
+  FaImage, 
+  FaList, 
+  FaTimes,
+  FaChevronDown,
+  FaChevronUp,
+  FaSave,
+  FaUpload
+} from 'react-icons/fa';
 
 const CategoryList = () => {
   const [categories, setCategories] = useState([]);
-  const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [expandedCategory, setExpandedCategory] = useState(null);
+  
+  // Edit states
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editingSubcategory, setEditingSubcategory] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    categoryName: '',
+    image: null,
+    imagePreview: ''
+  });
+  const [editSubcategoryFormData, setEditSubcategoryFormData] = useState({
+    subcategoryName: '',
+    image: null,
+    imagePreview: ''
+  });
+
+  // Fetch categories from API
+  const fetchCategories = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('http://31.97.206.144:5051/api/category');
+      if (response.data.success) {
+        setCategories(response.data.data);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch categories');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    axios
-      .get("https://credenhealth.onrender.com/api/admin/getallcategory")
-      .then((res) => {
-        const withImages = res.data.map((cat) => ({
-          ...cat,
-          image: dummyImage,
-        }));
-        setCategories(withImages);
-      })
-      .catch((err) => {
-        console.error("Error fetching categories:", err);
-      });
+    fetchCategories();
   }, []);
 
-  const filteredCategories = categories.filter((cat) =>
-    cat.name.toLowerCase().includes(search.toLowerCase())
-  );
+  // Delete category
+  const handleDeleteCategory = async (categoryId) => {
+    if (!window.confirm('Are you sure you want to delete this category?')) {
+      return;
+    }
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredCategories.slice(
-    indexOfFirstItem,
-    indexOfLastItem
-  );
-  const totalPages = Math.ceil(filteredCategories.length / itemsPerPage);
-
-  const handleBulkImport = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const data = new Uint8Array(event.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const imported = XLSX.utils.sheet_to_json(worksheet);
-      console.log("Imported Categories:", imported);
-      alert("Category data imported successfully!");
-    };
-
-    reader.readAsArrayBuffer(file);
+    try {
+      const response = await axios.delete(`http://31.97.206.144:5051/api/category/${categoryId}`);
+      if (response.data.success) {
+        alert('Category deleted successfully!');
+        fetchCategories();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete category');
+    }
   };
 
-  const handleEdit = (id) => {
-    console.log(`Edit category with ID: ${id}`);
+  // Delete subcategory
+  const handleDeleteSubcategory = async (categoryId, subcategoryId) => {
+    if (!window.confirm('Are you sure you want to delete this subcategory?')) {
+      return;
+    }
+
+    try {
+      const response = await axios.delete(
+        `http://31.97.206.144:5051/api/category/${categoryId}/subcategory/${subcategoryId}`
+      );
+      if (response.data.success) {
+        alert('Subcategory deleted successfully!');
+        fetchCategories();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete subcategory');
+    }
   };
 
-  const handleDelete = (id) => {
-    setCategories(categories.filter((cat) => cat._id !== id));
+  // Category Edit Functions
+  const handleEditCategory = (category) => {
+    setEditingCategory(category._id);
+    setEditFormData({
+      categoryName: category.categoryName,
+      image: null,
+      imagePreview: category.imageUrl
+    });
   };
 
-  const headers = [
-    { label: "Category Name", key: "name" },
-    { label: "Description", key: "description" },
-  ];
+  const handleCancelEditCategory = () => {
+    setEditingCategory(null);
+    setEditFormData({
+      categoryName: '',
+      image: null,
+      imagePreview: ''
+    });
+  };
+
+  const handleEditCategoryChange = (e) => {
+    const { name, value, files } = e.target;
+    if (name === 'image' && files[0]) {
+      setEditFormData(prev => ({
+        ...prev,
+        image: files[0],
+        imagePreview: URL.createObjectURL(files[0])
+      }));
+    } else {
+      setEditFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  const handleUpdateCategory = async (categoryId) => {
+    try {
+      const formData = new FormData();
+      formData.append('categoryName', editFormData.categoryName);
+      if (editFormData.image) {
+        formData.append('image', editFormData.image);
+      }
+
+      const response = await axios.put(
+        `http://31.97.206.144:5051/api/category/${categoryId}`,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        }
+      );
+
+      if (response.data.success) {
+        alert('Category updated successfully!');
+        setEditingCategory(null);
+        fetchCategories();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update category');
+    }
+  };
+
+  // Subcategory Edit Functions
+  const handleEditSubcategory = (subcategory) => {
+    setEditingSubcategory(subcategory._id);
+    setEditSubcategoryFormData({
+      subcategoryName: subcategory.subcategoryName,
+      image: null,
+      imagePreview: subcategory.subcategoryImageUrl
+    });
+  };
+
+  const handleCancelEditSubcategory = () => {
+    setEditingSubcategory(null);
+    setEditSubcategoryFormData({
+      subcategoryName: '',
+      image: null,
+      imagePreview: ''
+    });
+  };
+
+  const handleEditSubcategoryChange = (e) => {
+    const { name, value, files } = e.target;
+    if (name === 'image' && files[0]) {
+      setEditSubcategoryFormData(prev => ({
+        ...prev,
+        image: files[0],
+        imagePreview: URL.createObjectURL(files[0])
+      }));
+    } else {
+      setEditSubcategoryFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  const handleUpdateSubcategory = async (categoryId, subcategoryId) => {
+    try {
+      const formData = new FormData();
+      formData.append('subcategoryName', editSubcategoryFormData.subcategoryName);
+      if (editSubcategoryFormData.image) {
+        formData.append('image', editSubcategoryFormData.image);
+      }
+
+      const response = await axios.put(
+        `http://31.97.206.144:5051/api/category/${categoryId}/subcategory/${subcategoryId}`,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        }
+      );
+
+      if (response.data.success) {
+        alert('Subcategory updated successfully!');
+        setEditingSubcategory(null);
+        fetchCategories();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update subcategory');
+    }
+  };
+
+  // Toggle category expansion
+  const toggleCategoryExpansion = (categoryId) => {
+    setExpandedCategory(expandedCategory === categoryId ? null : categoryId);
+  };
+
+  // Format date
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 bg-white rounded shadow">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Category List</h2>
-      </div>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <FaList className="text-indigo-600" />
+                Categories Management
+              </h1>
+              <p className="text-gray-600 mt-2">Manage your categories and subcategories</p>
+            </div>
+          </div>
+        </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <input
-          type="text"
-          className="px-3 py-2 border rounded text-sm"
-          placeholder="Search by category name..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setCurrentPage(1);
-          }}
-        />
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
 
-        <CSVLink
-          data={filteredCategories}
-          headers={headers}
-          filename="category_list.csv"
-          className="px-4 py-2 bg-green-500 text-white rounded text-sm flex items-center gap-2"
-        >
-          <FaFileCsv /> CSV
-        </CSVLink>
+        {/* Categories Grid */}
+        <div className="grid gap-6">
+          {categories.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-lg shadow-sm">
+              <FaImage className="mx-auto text-4xl text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No categories found</h3>
+              <p className="text-gray-600 mb-4">Get started by creating your first category.</p>
+              <button
+                onClick={() => window.location.href = '/create-category'}
+                className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition duration-200"
+              >
+                Create Category
+              </button>
+            </div>
+          ) : (
+            categories.map((category) => (
+              <div
+                key={category._id}
+                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-200 hover:shadow-md"
+              >
+                {/* Category Header */}
+                <div className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4 flex-1">
+                      {/* Category Image */}
+                      <div className="flex-shrink-0">
+                        <img
+                          src={editingCategory === category._id ? editFormData.imagePreview : category.imageUrl}
+                          alt={category.categoryName}
+                          className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                        />
+                      </div>
+                      
+                      {/* Category Info or Edit Form */}
+                      <div className="flex-1">
+                        {editingCategory === category._id ? (
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Category Name
+                              </label>
+                              <input
+                                type="text"
+                                name="categoryName"
+                                value={editFormData.categoryName}
+                                onChange={handleEditCategoryChange}
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Update Image
+                              </label>
+                              <input
+                                type="file"
+                                name="image"
+                                onChange={handleEditCategoryChange}
+                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                accept="image/*"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleUpdateCategory(category._id)}
+                                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center gap-2"
+                              >
+                                <FaSave className="text-sm" />
+                                Save
+                              </button>
+                              <button
+                                onClick={handleCancelEditCategory}
+                                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-200 flex items-center gap-2"
+                              >
+                                <FaTimes className="text-sm" />
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <h3 className="text-xl font-semibold text-gray-900 mb-1">
+                              {category.categoryName}
+                            </h3>
+                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                              <span className="flex items-center gap-1">
+                                <FaList className="text-xs" />
+                                {category.subcategories?.length || 0} subcategories
+                              </span>
+                              <span>Created: {formatDate(category.createdAt)}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
 
-        <label
-          htmlFor="import-cat"
-          className="px-4 py-2 bg-purple-600 text-white rounded text-sm flex items-center gap-2 cursor-pointer"
-        >
-          <FaUpload /> Bulk Import
-          <input
-            type="file"
-            accept=".xlsx, .xls"
-            id="import-cat"
-            onChange={handleBulkImport}
-            className="hidden"
-          />
-        </label>
-      </div>
+                    {/* Action Buttons */}
+                    {editingCategory !== category._id && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => toggleCategoryExpansion(category._id)}
+                          className="p-2 text-gray-500 hover:text-indigo-600 transition duration-200"
+                          title={expandedCategory === category._id ? 'Collapse' : 'Expand'}
+                        >
+                          {expandedCategory === category._id ? <FaChevronUp /> : <FaChevronDown />}
+                        </button>
+                        <button
+                          onClick={() => handleEditCategory(category)}
+                          className="p-2 text-blue-600 hover:text-blue-800 transition duration-200"
+                          title="Edit Category"
+                        >
+                          <FaEdit />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCategory(category._id)}
+                          className="p-2 text-red-600 hover:text-red-800 transition duration-200"
+                          title="Delete Category"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border rounded text-sm">
-          <thead className="bg-gray-200">
-            <tr>
-              <th className="p-2 border text-left">Image</th>
-              <th className="p-2 border text-left">Category Name</th>
-              <th className="p-2 border text-left">Description</th>
-              <th className="p-2 border text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentItems.map((cat) => (
-              <tr key={cat._id} className="hover:bg-gray-100 border-b">
-                <td className="p-2 border">
-                  <img
-                    src={cat.image}
-                    alt={cat.name}
-                    className="w-10 h-10 object-cover rounded"
-                  />
-                </td>
-                <td className="p-2 border">{cat.name}</td>
-                <td className="p-2 border">{cat.description || "-"}</td>
-                <td className="p-2 border flex gap-2">
-                  <button
-                    onClick={() => handleEdit(cat._id)}
-                    className="text-blue-500 hover:text-blue-700"
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(cat._id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <FaTrash />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {currentItems.length === 0 && (
-              <tr>
-                <td colSpan="4" className="text-center p-4 text-gray-500">
-                  No categories found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                {/* Subcategories Section */}
+                {expandedCategory === category._id && (
+                  <div className="border-t border-gray-200 bg-gray-50">
+                    <div className="p-6">
+                      <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                        <FaList className="text-indigo-600" />
+                        Subcategories
+                      </h4>
+                      
+                      {category.subcategories?.length === 0 ? (
+                        <div className="text-center py-4 text-gray-500">
+                          No subcategories found
+                        </div>
+                      ) : (
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {category.subcategories?.map((subcategory) => (
+                            <div
+                              key={subcategory._id}
+                              className="bg-white rounded-lg border border-gray-200 p-4"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3 flex-1">
+                                  {/* Subcategory Image */}
+                                  <div className="flex-shrink-0">
+                                    <img
+                                      src={editingSubcategory === subcategory._id ? editSubcategoryFormData.imagePreview : subcategory.subcategoryImageUrl}
+                                      alt={subcategory.subcategoryName}
+                                      className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                                    />
+                                  </div>
+                                  
+                                  {/* Subcategory Info or Edit Form */}
+                                  <div className="flex-1">
+                                    {editingSubcategory === subcategory._id ? (
+                                      <div className="space-y-2">
+                                        <input
+                                          type="text"
+                                          name="subcategoryName"
+                                          value={editSubcategoryFormData.subcategoryName}
+                                          onChange={handleEditSubcategoryChange}
+                                          className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        />
+                                        <input
+                                          type="file"
+                                          name="image"
+                                          onChange={handleEditSubcategoryChange}
+                                          className="w-full p-1 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                          accept="image/*"
+                                        />
+                                        <div className="flex gap-2">
+                                          <button
+                                            onClick={() => handleUpdateSubcategory(category._id, subcategory._id)}
+                                            className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 transition duration-200 flex items-center gap-1"
+                                          >
+                                            <FaSave className="text-xs" />
+                                            Save
+                                          </button>
+                                          <button
+                                            onClick={handleCancelEditSubcategory}
+                                            className="bg-gray-600 text-white px-3 py-1 rounded text-xs hover:bg-gray-700 transition duration-200 flex items-center gap-1"
+                                          >
+                                            <FaTimes className="text-xs" />
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <h5 className="font-medium text-gray-900">
+                                        {subcategory.subcategoryName}
+                                      </h5>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {/* Action Buttons */}
+                                {editingSubcategory !== subcategory._id && (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => handleEditSubcategory(subcategory)}
+                                      className="p-1 text-blue-600 hover:text-blue-800 transition duration-200"
+                                      title="Edit Subcategory"
+                                    >
+                                      <FaEdit className="text-sm" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteSubcategory(category._id, subcategory._id)}
+                                      className="p-1 text-red-600 hover:text-red-800 transition duration-200"
+                                      title="Delete Subcategory"
+                                    >
+                                      <FaTrash className="text-sm" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
 
-      {/* Pagination Controls */}
-      <div className="flex justify-center mt-4 gap-2">
-        {Array.from({ length: totalPages }, (_, i) => (
-          <button
-            key={i + 1}
-            className={`px-3 py-1 border rounded ${
-              currentPage === i + 1
-                ? "bg-blue-500 text-white"
-                : "bg-white text-gray-700"
-            }`}
-            onClick={() => setCurrentPage(i + 1)}
-          >
-            {i + 1}
-          </button>
-        ))}
+        {/* Stats Footer */}
+        {categories.length > 0 && (
+          <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-indigo-600">{categories.length}</div>
+                <div className="text-gray-600">Total Categories</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {categories.reduce((total, cat) => total + (cat.subcategories?.length || 0), 0)}
+                </div>
+                <div className="text-gray-600">Total Subcategories</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  {categories.filter(cat => cat.subcategories?.length > 0).length}
+                </div>
+                <div className="text-gray-600">Categories with Subcategories</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

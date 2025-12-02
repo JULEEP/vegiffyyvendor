@@ -1,9 +1,9 @@
 import React from "react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { FaFilePdf } from "react-icons/fa";
 
 const CancelledBookingList = () => {
-  // Dummy data for the cancelled bookings
   const cancelledBookings = [
     {
       id: 1,
@@ -62,107 +62,108 @@ const CancelledBookingList = () => {
     },
   ];
 
-  // Function to determine status class
   const getStatusClass = (status) => {
     switch (status) {
-      case "Confirmed":
-        return "bg-green-500 text-white";
-      case "Pending":
-        return "bg-transparent border-2 border-yellow-500 text-yellow-500";
-      case "Delivered":
-        return "bg-transparent border-2 border-blue-500 text-blue-500";
       case "Cancelled":
-        return "bg-transparent border-2 border-red-500 text-red-500";
+        return "border-2 border-red-500 text-red-500";
+      case "Pending":
+        return "border-2 border-yellow-500 text-yellow-500";
+      case "Delivered":
+        return "border-2 border-blue-500 text-blue-500";
       default:
-        return "bg-transparent border-2 border-gray-500 text-gray-500";
+        return "border-2 border-gray-400 text-gray-500";
     }
   };
 
-  // Function to generate PDF
   const generatePDF = () => {
     const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text("Cancelled Booking List", 14, 20);
 
-    doc.setFontSize(16);
-    doc.text("Cancelled Booking List", 20, 20);
-
-    // Table Data
-    const tableData = cancelledBookings.map((booking) => [
-      booking.userName,
-      booking.productName,
-      booking.quantity,
-      `₹${booking.price}`,
-      `₹${booking.totalPrice}`,
-      booking.bookingDate,
-      booking.deliveryDate,
-      booking.status,
+    const tableData = cancelledBookings.map((b) => [
+      b.userName,
+      b.productName,
+      b.quantity,
+      `₹${b.price}`,
+      `₹${b.totalPrice}`,
+      b.bookingDate,
+      b.deliveryDate,
+      b.status,
     ]);
 
-    // Add table to PDF
     doc.autoTable({
       head: [
         [
           "User Name",
           "Product",
-          "Quantity",
+          "Qty",
           "Price",
-          "Total Price",
+          "Total",
           "Booking Date",
           "Delivery Date",
           "Status",
         ],
       ],
       body: tableData,
-      startY: 40, // Position of the table in the PDF
+      startY: 30,
     });
 
     doc.save("Cancelled_Booking_List.pdf");
   };
 
   return (
-    <div className="p-6 bg-white rounded shadow">
-      <h3 className="text-lg font-bold mb-4">Cancelled Order List</h3>
-      <button
-        onClick={generatePDF}
-        className="bg-blue-500 text-white p-2 rounded mb-4"
-      >
-        Download PDF
-      </button>
-      <table className="min-w-full border-collapse">
-        <thead className="bg-red-100">
-          <tr className="border-b">
-            <th className="p-4 text-left">User Name</th>
-            <th className="p-4 text-left">Product</th>
-            <th className="p-4 text-left">Quantity</th>
-            <th className="p-4 text-left">Price</th>
-            <th className="p-4 text-left">Total Price</th>
-            <th className="p-4 text-left">Booking Date</th>
-            <th className="p-4 text-left">Delivery Date</th>
-            <th className="p-4 text-left">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {cancelledBookings.map((booking) => (
-            <tr key={booking.id} className="border-b">
-              <td className="p-4">{booking.userName}</td>
-              <td className="p-4">{booking.productName}</td>
-              <td className="p-4">{booking.quantity}</td>
-              <td className="p-4">₹{booking.price}</td>
-              <td className="p-4">₹{booking.totalPrice}</td>
-              <td className="p-4">{booking.bookingDate}</td>
-              <td className="p-4">{booking.deliveryDate}</td>
-              <td className="p-4">
-                <span
-                  className={`inline-block py-1 px-3 rounded-full ${getStatusClass(
-                    booking.status
-                  )}`}
-                >
-                  {booking.status}
-                </span>
-              </td>
+    <div className="p-4 bg-white rounded shadow">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-base font-semibold text-gray-700">
+          Cancelled Orders
+        </h3>
+        <button
+          onClick={generatePDF}
+          className="text-sm px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 flex items-center"
+        >
+          <FaFilePdf className="mr-2" />
+          Download PDF
+        </button>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm border-collapse">
+          <thead className="bg-red-100 text-gray-600 uppercase text-xs">
+            <tr className="border-b">
+              <th className="p-3 text-left">User</th>
+              <th className="p-3 text-left">Product</th>
+              <th className="p-3 text-left">Qty</th>
+              <th className="p-3 text-left">Price</th>
+              <th className="p-3 text-left">Total</th>
+              <th className="p-3 text-left">Booking Date</th>
+              <th className="p-3 text-left">Delivery Date</th>
+              <th className="p-3 text-left">Status</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {cancelledBookings.map((booking) => (
+              <tr key={booking.id} className="border-b hover:bg-gray-50">
+                <td className="p-3">{booking.userName}</td>
+                <td className="p-3">{booking.productName}</td>
+                <td className="p-3">{booking.quantity}</td>
+                <td className="p-3">₹{booking.price}</td>
+                <td className="p-3">₹{booking.totalPrice}</td>
+                <td className="p-3">{booking.bookingDate}</td>
+                <td className="p-3">{booking.deliveryDate}</td>
+                <td className="p-3">
+                  <span
+                    className={`inline-block px-3 py-1 rounded-full text-xs ${getStatusClass(
+                      booking.status
+                    )}`}
+                  >
+                    {booking.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

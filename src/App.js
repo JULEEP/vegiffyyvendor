@@ -88,6 +88,14 @@ import BookingList from "./Pages/BookingList.js";
 import PendingBookingList from "./Pages/PendingBookingList.js";
 import CompletedBookingList from "./Pages/CompletedBookingList .js";
 import CancelledBookingList from "./Pages/CancelledBookingList .js";
+import MyWallet from "./Pages/MyWallet.js";
+import VendorProfile from "./Pages/VendorProfile.js";
+import AddVendorForm from "./Pages/Register.js";
+import VendorSupport from "./Pages/VendorSupport.js";
+import VendorUsers from "./Pages/VendorUsers.js";
+import VendorJoiningFee from "./Pages/VendorJoiningFee.js";
+import VendorMyPlans from "./Pages/VendorMyPlans.js";
+import AboutUs from "./Pages/AboutUs.js";
 
 
 
@@ -97,6 +105,7 @@ function App() {
     <Routes>
       {/* Login page rendered outside AdminLayout */}
       <Route path="/" element={<LoginPage />} />
+      <Route path="/register" element={<AddVendorForm />} />
 
       {/* All other routes inside AdminLayout */}
       <Route
@@ -119,7 +128,7 @@ function App() {
               <Route path="/performance" element={<Performance />} />
               <Route path="/recruitment" element={<Recruitment />} />
               <Route path="/employees" element={<Employees />} />
-              <Route path="/setting" element={<Settings />} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="/languagesetup" element={<LanguageSetup />} />
               <Route path="/backupreset" element={<BackupReset />} />
               <Route path="/diagnosticlist" element={<DiagnosticList />} />
@@ -170,6 +179,13 @@ function App() {
               <Route path="/create-coupon" element={<CreateCoupon />} />
               <Route path="/upload-docs" element={<UploadDocuments />} />
               <Route path="/docs" element={<DocumentTable />} />
+              <Route path="/mywallet" element={<MyWallet />} />
+              <Route path="/myprofile" element={<VendorProfile />} />
+              <Route path="/support" element={<VendorSupport />} />
+               <Route path="/users" element={<VendorUsers />} />
+              <Route path="/vendorpay" element={<VendorJoiningFee />} />
+              <Route path="/myplans" element={<VendorMyPlans />} />
+             <Route path="/aboutus" element={<AboutUs />} />
 
 
 
