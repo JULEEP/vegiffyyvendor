@@ -22,7 +22,8 @@ import {
   FaReceipt,
   FaCreditCard,
   FaCalendarAlt,
-  FaStar
+  FaStar,
+  FaBell
 } from "react-icons/fa";
 
 const Dashboard = () => {
@@ -44,11 +45,13 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [productsData, setProductsData] = useState([]);
   
-  // Buffer State
+  // Buffer State - Added manual control
   const [showBuffer, setShowBuffer] = useState(false);
   const [bufferOrders, setBufferOrders] = useState([]);
   const [currentBufferOrder, setCurrentBufferOrder] = useState(null);
   const [isPlayingSound, setIsPlayingSound] = useState(false);
+  const [isBufferManuallyClosed, setIsBufferManuallyClosed] = useState(false);
+  const [hasNewOrders, setHasNewOrders] = useState(false);
 
   const navigate = useNavigate();
   const vendorId = localStorage.getItem("vendorId");
@@ -70,7 +73,7 @@ const Dashboard = () => {
   const fetchRestaurantOrders = async () => {
     try {
       const response = await axios.get(
-        `http://31.97.206.144:5051/api/vendor/restaurantorders/${vendorId}`
+        `https://api.vegiffyy.com/api/vendor/restaurantorders/${vendorId}`
       );
       
       const allOrders = response.data.data || response.data || [];
@@ -80,19 +83,25 @@ const Dashboard = () => {
 
       // Check if there are new pending orders
       if (pendingOrders.length > 0) {
-        setBufferOrders(pendingOrders);
+        const newOrderCount = pendingOrders.length - bufferOrders.length;
         
-        // Show buffer if not already showing
-        if (!showBuffer) {
+        // Only auto-show buffer if it's not manually closed AND there are new orders
+        if (!isBufferManuallyClosed && newOrderCount > 0) {
           setShowBuffer(true);
-          setCurrentBufferOrder(pendingOrders[0]);
           playNotificationSound();
         }
+        
+        // Always update buffer orders to track new ones
+        setBufferOrders(pendingOrders);
+        setHasNewOrders(true);
+        
+        // Set current buffer order if not set
+        if (!currentBufferOrder && pendingOrders.length > 0) {
+          setCurrentBufferOrder(pendingOrders[0]);
+        }
       } else {
-        // No pending orders, hide buffer
-        setShowBuffer(false);
-        setBufferOrders([]);
-        setCurrentBufferOrder(null);
+        // No pending orders
+        setHasNewOrders(false);
       }
       
       return pendingOrders;
@@ -112,14 +121,14 @@ const Dashboard = () => {
         
         // Fetch dashboard stats
         const dashboardRes = await axios.get(
-          `http://31.97.206.144:5051/api/vendor/dashboard/${vendorId}`
+          `https://api.vegiffyy.com/api/vendor/dashboard/${vendorId}`
         );
 
         const { stats, salesData, orders, pendingOrders } = dashboardRes.data;
 
         // Fetch products
         const productsRes = await axios.get(
-          `http://31.97.206.144:5051/api/restaurant-products/${vendorId}`
+          `https://api.vegiffyy.com/api/restaurant-products/${vendorId}`
         );
 
         const productsData = productsRes.data.recommendedProducts || productsRes.data.data || [];
@@ -182,14 +191,14 @@ const Dashboard = () => {
         clearInterval(bufferIntervalRef.current);
       }
     };
-  }, [vendorId, showBuffer]);
+  }, [vendorId, isBufferManuallyClosed]);
 
   // Separate useEffect for products if needed
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         const productsRes = await axios.get(
-          `http://31.97.206.144:5051/api/restaurant-products/${vendorId}`
+          `https://api.vegiffyy.com/api/restaurant-products/${vendorId}`
         );
         const productsData = productsRes.data.recommendedProducts || productsRes.data.data || [];
         setProductsData(productsData);
@@ -208,7 +217,7 @@ const Dashboard = () => {
   const handleAcceptOrder = async (orderId) => {
     try {
       const response = await axios.put(
-        `http://31.97.206.144:5051/api/acceptorder/${orderId}/${vendorId}`,
+        `https://api.vegiffyy.com/api/acceptorder/${orderId}/${vendorId}`,
         { orderStatus: "Accepted" }
       );
       
@@ -222,6 +231,7 @@ const Dashboard = () => {
         } else {
           setShowBuffer(false);
           setCurrentBufferOrder(null);
+          setHasNewOrders(false);
         }
         
         // Refresh dashboard data
@@ -237,7 +247,7 @@ const Dashboard = () => {
   const handleRejectOrder = async (orderId) => {
     try {
       const response = await axios.put(
-        `http://31.97.206.144:5051/api/acceptorder/${orderId}/${vendorId}`,
+        `https://api.vegiffyy.com/api/acceptorder/${orderId}/${vendorId}`,
         { orderStatus: "Rejected" }
       );
       
@@ -251,6 +261,7 @@ const Dashboard = () => {
         } else {
           setShowBuffer(false);
           setCurrentBufferOrder(null);
+          setHasNewOrders(false);
         }
         
         // Refresh dashboard data
@@ -262,14 +273,27 @@ const Dashboard = () => {
     }
   };
 
-  // ✅ Close Buffer
+  // ✅ Close Buffer - Now only hides, doesn't clear
   const handleCloseBuffer = () => {
     setShowBuffer(false);
-    setCurrentBufferOrder(null);
+    setIsBufferManuallyClosed(true);
+  };
+
+  // ✅ Open Buffer - Manual open
+  const handleOpenBuffer = () => {
+    if (bufferOrders.length > 0) {
+      setShowBuffer(true);
+      setIsBufferManuallyClosed(false);
+      if (!currentBufferOrder) {
+        setCurrentBufferOrder(bufferOrders[0]);
+      }
+    }
   };
 
   // ✅ Next Order in Buffer
   const handleNextOrder = () => {
+    if (bufferOrders.length === 0) return;
+    
     const currentIndex = bufferOrders.findIndex(order => order._id === currentBufferOrder._id);
     const nextIndex = (currentIndex + 1) % bufferOrders.length;
     setCurrentBufferOrder(bufferOrders[nextIndex]);
@@ -566,28 +590,71 @@ const Dashboard = () => {
       {/* Enhanced Buffer Order Modal */}
       <BufferOrderModal />
 
-      {/* Rest of your existing dashboard JSX remains exactly the same */}
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Dashboard Overview</h1>
-          <p className="text-gray-600 mt-2">Welcome back! Here's what's happening with your restaurant today.</p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">Dashboard Overview</h1>
+              <p className="text-gray-600 mt-2">Welcome back! Here's what's happening with your restaurant today.</p>
+            </div>
+            
+            {/* Manual Buffer Control Button */}
+            {bufferOrders.length > 0 && (
+              <button
+                onClick={handleOpenBuffer}
+                className={`flex items-center space-x-2 px-4 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 ${
+                  hasNewOrders && !showBuffer
+                    ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white animate-pulse shadow-lg'
+                    : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                }`}
+              >
+                <FaBell className={hasNewOrders && !showBuffer ? "animate-bounce" : ""} />
+                <span>
+                  {hasNewOrders && !showBuffer ? '📢 New Orders!' : 'View Pending Orders'}
+                </span>
+                <span className="bg-white text-blue-600 px-2 py-1 rounded-full text-xs font-bold ml-2">
+                  {bufferOrders.length}
+                </span>
+              </button>
+            )}
+          </div>
           
           {/* Buffer Status Indicator */}
-          {bufferOrders.length > 0 && (
-            <div className="mt-4 bg-yellow-100 border border-yellow-400 rounded-lg p-3 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
+          {bufferOrders.length > 0 && !showBuffer && (
+            <div className="mt-4 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
+              <div className="flex items-center space-x-3">
                 <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
-                <span className="text-yellow-800 font-medium">
-                  {bufferOrders.length} pending order{bufferOrders.length > 1 ? 's' : ''} waiting
-                </span>
+                <div>
+                  <span className="text-yellow-800 font-medium">
+                    {bufferOrders.length} pending order{bufferOrders.length > 1 ? 's' : ''} waiting
+                  </span>
+                  {hasNewOrders && (
+                    <span className="ml-3 bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-bold">
+                      NEW!
+                    </span>
+                  )}
+                </div>
               </div>
-              <button 
-                onClick={() => setShowBuffer(true)}
-                className="text-yellow-700 hover:text-yellow-900 font-medium text-sm"
-              >
-                View Orders
-              </button>
+              <div className="flex space-x-2">
+                <button 
+                  onClick={handleOpenBuffer}
+                  className="text-yellow-700 hover:text-yellow-900 font-medium text-sm bg-yellow-100 hover:bg-yellow-200 px-3 py-1 rounded-lg transition-colors"
+                >
+                  View Orders
+                </button>
+                {hasNewOrders && (
+                  <button 
+                    onClick={() => {
+                      setHasNewOrders(false);
+                      setIsBufferManuallyClosed(true);
+                    }}
+                    className="text-gray-600 hover:text-gray-800 text-sm px-3 py-1 rounded-lg transition-colors"
+                  >
+                    Mark as seen
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -618,7 +685,7 @@ const Dashboard = () => {
             icon={<FaClock className="text-2xl text-yellow-600" />}
             color="border-yellow-500"
             change={-5}
-            onClick={navigateToPendingOrders}
+            onClick={handleOpenBuffer}
           />
           
           <StatCard
@@ -784,7 +851,7 @@ const Dashboard = () => {
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-semibold text-gray-800">Pending Orders</h3>
               <button 
-                onClick={navigateToPendingOrders}
+                onClick={handleOpenBuffer}
                 className="text-blue-600 hover:text-blue-800 font-medium text-sm"
               >
                 View All
@@ -796,7 +863,10 @@ const Dashboard = () => {
                   <div 
                     key={order._id}
                     className="flex items-center justify-between p-3 border border-yellow-200 rounded-lg bg-yellow-50 hover:bg-yellow-100 cursor-pointer transition-colors"
-                    onClick={() => setCurrentBufferOrder(order) || setShowBuffer(true)}
+                    onClick={() => {
+                      setCurrentBufferOrder(order);
+                      handleOpenBuffer();
+                    }}
                   >
                     <div>
                       <p className="font-medium text-gray-800">#{order._id?.slice(-8)}</p>

@@ -50,7 +50,7 @@ const BookingList = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`http://31.97.206.144:5051/api/vendor/restaurantorders/${vendorId}`);
+        const res = await fetch(`https://api.vegiffyy.com/api/vendor/restaurantorders/${vendorId}`);
         if (!res.ok) throw new Error("Failed to fetch orders");
         const data = await res.json();
         if (data.success) {
@@ -75,9 +75,9 @@ const BookingList = () => {
               couponDiscount: order.couponDiscount || 0,
               paymentMethod: order.paymentMethod || "N/A",
               paymentStatus: order.paymentStatus || "N/A",
-              deliveryBoy: order.deliveryBoyId ? 
+              deliveryBoy: order.deliveryBoyId ?
                 `${order.deliveryBoyId.fullName} (${order.deliveryBoyId.mobileNumber})` : "Not Assigned",
-              deliveryAddress: order.deliveryAddress ? 
+              deliveryAddress: order.deliveryAddress ?
                 `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state} - ${order.deliveryAddress.postalCode}` : "N/A",
               preparationTime: order.preparationTime || null,
               raw: order,
@@ -305,7 +305,7 @@ const BookingList = () => {
       }
 
       // Using the new API endpoint
-      const res = await fetch(`http://31.97.206.144:5051/api/acceptorder/${editBooking.bookingId}/${vendorId}`, {
+      const res = await fetch(`https://api.vegiffyy.com/api/acceptorder/${editBooking.bookingId}/${vendorId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -322,11 +322,11 @@ const BookingList = () => {
         setBookings((prev) =>
           prev.map((b) =>
             b.bookingId === editBooking.bookingId
-              ? { 
-                  ...b, 
-                  status: editStatus,
-                  preparationTime: editStatus === "Accepted" ? preparationTime : b.preparationTime
-                }
+              ? {
+                ...b,
+                status: editStatus,
+                preparationTime: editStatus === "Accepted" ? preparationTime : b.preparationTime
+              }
               : b
           )
         );
@@ -347,7 +347,7 @@ const BookingList = () => {
     setDeleteLoading(true);
     setError(null);
     try {
-      const res = await fetch(`http://31.97.206.144:5051/api/vendor/deleteorder/${bookingId}`, {
+      const res = await fetch(`https://api.vegiffyy.com/api/vendor/deleteorder/${bookingId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete order");
@@ -504,11 +504,10 @@ const BookingList = () => {
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
-                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
-                  statusFilter === status
+                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border transition-colors ${statusFilter === status
                     ? 'bg-blue-100 text-blue-800 border-blue-300'
                     : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 {status} ({statusCounts[status]})
               </button>
@@ -654,9 +653,8 @@ const BookingList = () => {
                             title="Delete Order"
                             disabled={deleteLoading}
                             onClick={() => deleteOrder(booking.bookingId)}
-                            className={`inline-flex items-center p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ${
-                              deleteLoading ? "opacity-50 cursor-not-allowed" : ""
-                            }`}
+                            className={`inline-flex items-center p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ${deleteLoading ? "opacity-50 cursor-not-allowed" : ""
+                              }`}
                           >
                             <FaTrashAlt />
                           </button>
@@ -709,12 +707,11 @@ const BookingList = () => {
                     Order Summary
                   </h4>
                   <div className="space-y-2 text-sm">
-                    <div><strong>Status:</strong> 
-                      <span className={`ml-2 px-2 py-1 rounded text-xs font-semibold ${
-                        viewBooking.status === "Accepted" ? "bg-green-600 text-white" :
-                        viewBooking.status === "Pending" ? "bg-yellow-500 text-white" :
-                        viewBooking.status === "Rejected" ? "bg-red-600 text-white" : "bg-gray-500 text-white"
-                      }`}>
+                    <div><strong>Status:</strong>
+                      <span className={`ml-2 px-2 py-1 rounded text-xs font-semibold ${viewBooking.status === "Accepted" ? "bg-green-600 text-white" :
+                          viewBooking.status === "Pending" ? "bg-yellow-500 text-white" :
+                            viewBooking.status === "Rejected" ? "bg-red-600 text-white" : "bg-gray-500 text-white"
+                        }`}>
                         {viewBooking.status}
                       </span>
                     </div>
@@ -762,8 +759,8 @@ const BookingList = () => {
                         <div className="flex items-start space-x-4 flex-1">
                           {/* Product Image */}
                           <div className="flex-shrink-0">
-                            <img 
-                              src={product.image} 
+                            <img
+                              src={product.image}
                               alt={product.name}
                               className="w-16 h-16 rounded-lg object-cover border"
                               onError={(e) => {
@@ -771,7 +768,7 @@ const BookingList = () => {
                               }}
                             />
                           </div>
-                          
+
                           {/* Product Details */}
                           <div className="flex-1">
                             <div className="font-semibold text-gray-800 text-lg mb-1">
@@ -784,7 +781,7 @@ const BookingList = () => {
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Product Status Badge */}
                         <div className="flex-shrink-0">
                           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-300">
@@ -910,6 +907,8 @@ const BookingList = () => {
                   disabled={editLoading}
                 >
                   <option value="Pending">Pending</option>
+                  <option value="Prepared">Prepared</option>
+                  <option value="Out For Delivery">Out For Delivery</option>
                   <option value="Accepted">Accepted</option>
                   <option value="Rejected">Rejected</option>
                 </select>

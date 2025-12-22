@@ -26,7 +26,7 @@ const CreateProductForm = () => {
   const fetchCategories = async () => {
     try {
       setCategoriesLoading(true);
-      const response = await axios.get("http://31.97.206.144:5051/api/category");
+      const response = await axios.get("https://api.vegiffyy.com/api/category");
       if (response.data.success) {
         setCategories(response.data.data);
       }
@@ -119,12 +119,24 @@ const CreateProductForm = () => {
       return;
     }
 
+    // Updated validation to include discount as required field
     const hasEmptyRecommendedFields = recommended.some(item => 
-      !item.name || !item.price || !item.category || !item.imageFile
+      !item.name || !item.price || !item.discount || !item.category || !item.imageFile
     );
 
     if (hasEmptyRecommendedFields) {
-      alert("Please fill all required fields (Name, Price, Category, Image) for each recommended product");
+      alert("Please fill all required fields (Name, Price, Discount, Category, Image) for each recommended product");
+      return;
+    }
+
+    // Validate discount values
+    const hasInvalidDiscount = recommended.some(item => {
+      const discount = parseFloat(item.discount);
+      return isNaN(discount) || discount < 0 || discount > 100;
+    });
+
+    if (hasInvalidDiscount) {
+      alert("Discount must be a number between 0 and 100 for all products");
       return;
     }
 
@@ -168,7 +180,7 @@ const CreateProductForm = () => {
 
     try {
       setLoading(true);
-      const response = await axios.post("http://31.97.206.144:5051/api/restaurant-products", formData, {
+      const response = await axios.post("https://api.vegiffyy.com/api/restaurant-products", formData, {
         headers: { 
           "Content-Type": "multipart/form-data",
         },
@@ -309,10 +321,10 @@ const CreateProductForm = () => {
                     />
                   </div>
 
-                  {/* Discount */}
+                  {/* Discount - Made Required */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Discount (%)
+                      Discount (%) <span className="text-red-500">*</span>
                     </label>
                     <input
                       className="p-2 border border-gray-300 rounded w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -323,7 +335,9 @@ const CreateProductForm = () => {
                       step="0.01"
                       value={item.discount}
                       onChange={(e) => handleRecommendedChange(index, "discount", e.target.value)}
+                      required
                     />
+                    <p className="text-xs text-gray-500 mt-1">Enter 0 if no discount</p>
                   </div>
 
                   {/* Preparation Time */}

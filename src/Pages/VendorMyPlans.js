@@ -8,6 +8,8 @@ import {
   FiUser,
   FiX,
   FiAlertCircle,
+  FiPercent,
+  FiTag,
 } from 'react-icons/fi';
 
 const VendorMyPlans = () => {
@@ -20,6 +22,14 @@ const VendorMyPlans = () => {
     fetchMyPlans();
   }, []);
 
+  const formatCurrency = (amount) => {
+    // Format amount to show only one decimal place
+    if (typeof amount === 'number') {
+      return amount.toFixed(1);
+    }
+    return amount || '0.0';
+  };
+
   const fetchMyPlans = async () => {
     try {
       const vendorId = localStorage.getItem('vendorId');
@@ -28,7 +38,7 @@ const VendorMyPlans = () => {
         return;
       }
 
-      const response = await fetch(`http://31.97.206.144:5051/api/vendor/myplan/${vendorId}`);
+      const response = await fetch(`https://api.vegiffyy.com/api/vendor/myplan/${vendorId}`);
       const result = await response.json();
 
       if (result.success && result.message === "Vendor payment details fetched successfully") {
@@ -55,7 +65,10 @@ const VendorMyPlans = () => {
     return {
       _id: plan._id,
       planName: plan.planId?.name || 'Vendor Plan',
-      price: plan.amount || 0,
+      baseAmount: plan.amount || 0,
+      gstAmount: plan.gstAmount || 0,
+      totalAmount: plan.totalAmount || 0,
+      formattedTotalAmount: formatCurrency(plan.totalAmount || 0),
       validity: plan.planId?.validity || 1,
       benefits: plan.planId?.benefits || ['Restaurant listing', 'Order management', 'Customer analytics'],
       transactionId: plan.transactionId || 'N/A',
@@ -128,6 +141,7 @@ const VendorMyPlans = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
             <div className="flex items-center space-x-4 mb-4 md:mb-0">
               <div className="p-3 bg-blue-100 rounded-lg">
+                <FiTag className="w-6 h-6 text-blue-600" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">My Vendor Plans</h1>
@@ -175,8 +189,14 @@ const VendorMyPlans = () => {
                       <p className="text-blue-100 text-sm mt-1">Vendor Plan</p>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold">₹{plan.price}</div>
-                      <div className="text-blue-100 text-sm">{plan.validity} Day</div>
+                      <div className="text-2xl font-bold">₹{plan.formattedTotalAmount}</div>
+                      <div className="text-blue-100 text-sm">{plan.validity} Days</div>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-xs text-blue-100">
+                    <div className="flex justify-between">
+                      <span>Base: ₹{plan.baseAmount}</span>
+                      <span>GST: ₹{formatCurrency(plan.gstAmount)}</span>
                     </div>
                   </div>
                 </div>
@@ -267,9 +287,13 @@ const VendorMyPlans = () => {
                         <p className="text-blue-100">Vendor Subscription Plan</p>
                       </div>
                       <div className="text-right">
-                        <div className="text-2xl font-bold">₹{selectedPlan.price}</div>
+                        <div className="text-2xl font-bold">₹{selectedPlan.formattedTotalAmount}</div>
                         <div className="text-blue-100">{selectedPlan.validity} day validity</div>
                       </div>
+                    </div>
+                    <div className="mt-2 text-xs text-blue-100 grid grid-cols-2 gap-2">
+                      <div>Base: ₹{selectedPlan.baseAmount}</div>
+                      <div className="text-right">GST: ₹{formatCurrency(selectedPlan.gstAmount)}</div>
                     </div>
                   </div>
 
@@ -290,6 +314,36 @@ const VendorMyPlans = () => {
 
                   {/* Transaction Details */}
                   <div className="grid grid-cols-1 gap-3">
+                    <div className="flex items-center space-x-3 p-3 bg-white border rounded-lg">
+                      <FiDollarSign className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm text-gray-500">Base Amount</p>
+                        <p className="font-medium text-gray-900">
+                          ₹{selectedPlan.baseAmount}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-3 p-3 bg-white border rounded-lg">
+                      <FiPercent className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm text-gray-500">GST Amount</p>
+                        <p className="font-medium text-gray-900">
+                          ₹{formatCurrency(selectedPlan.gstAmount)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-3 p-3 bg-white border rounded-lg">
+                      <FiDollarSign className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm text-gray-500">Total Amount Paid</p>
+                        <p className="font-bold text-blue-600 text-lg">
+                          ₹{selectedPlan.formattedTotalAmount}
+                        </p>
+                      </div>
+                    </div>
+
                     <div className="flex items-center space-x-3 p-3 bg-white border rounded-lg">
                       <FiAward className="w-5 h-5 text-gray-400" />
                       <div>
@@ -327,14 +381,6 @@ const VendorMyPlans = () => {
                         <p className="font-medium text-gray-900">
                           {new Date(selectedPlan.expiryDate).toLocaleDateString('en-IN')}
                         </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-3 p-3 bg-white border rounded-lg">
-                      <FiDollarSign className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm text-gray-500">Amount Paid</p>
-                        <p className="font-medium text-gray-900">₹{selectedPlan.price}</p>
                       </div>
                     </div>
 

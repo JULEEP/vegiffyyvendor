@@ -12,7 +12,9 @@ import {
   FiX,
   FiAlertCircle,
   FiCheck,
-  FiLoader
+  FiLoader,
+  FiUser,
+  FiFileText
 } from 'react-icons/fi';
 
 const MyWallet = () => {
@@ -22,22 +24,20 @@ const MyWallet = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [accounts, setAccounts] = useState([]);
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [accountLoading, setAccountLoading] = useState(false);
 
   // Withdrawal form state
   const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [accountDetails, setAccountDetails] = useState({
-    bankName: '',
-    accountNumber: '',
-    ifsc: '',
-    accountHolder: ''
-  });
 
   const vendorId = localStorage.getItem("vendorId");
+  const API_BASE_URL = "https://api.vegiffyy.com/api/vendor";
 
   const fetchWalletData = async () => {
     try {
       setError('');
-      const res = await axios.get(`http://31.97.206.144:5051/api/getwallet/${vendorId}`);
+      const res = await axios.get(`https://api.vegiffyy.com/api/getwallet/${vendorId}`);
 
       if (res.data?.success) {
         setWalletData(res.data.data);
@@ -52,9 +52,35 @@ const MyWallet = () => {
     }
   };
 
+  // Fetch bank accounts
+  const fetchBankAccounts = async () => {
+    try {
+      setAccountLoading(true);
+      const response = await axios.get(
+        `${API_BASE_URL}/allaccounts/${vendorId}`
+      );
+      
+      if (response.data.success) {
+        setAccounts(response.data.data || []);
+        // Auto select primary account if exists
+        const primaryAccount = response.data.data.find(acc => acc.isPrimary);
+        if (primaryAccount) {
+          setSelectedAccountId(primaryAccount._id);
+        }
+      } else {
+        console.error("Failed to fetch accounts:", response.data.message);
+      }
+    } catch (error) {
+      console.error("Error fetching accounts:", error);
+    } finally {
+      setAccountLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (vendorId) {
       fetchWalletData();
+      fetchBankAccounts();
     } else {
       setError('Vendor ID not found. Please login again.');
       setLoading(false);
@@ -64,6 +90,21 @@ const MyWallet = () => {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchWalletData();
+    fetchBankAccounts();
+  };
+
+  const calculateWithdrawAmount = (amount) => {
+    if (!amount || isNaN(amount)) return { gross: 0, fee: 0, net: 0 };
+    
+    const grossAmount = parseFloat(amount);
+    const fee = (grossAmount * 2) / 100; // 2% fee
+    const netAmount = grossAmount - fee;
+    
+    return {
+      gross: grossAmount.toFixed(2),
+      fee: fee.toFixed(2),
+      net: netAmount.toFixed(2)
+    };
   };
 
   const handleWithdraw = async () => {
@@ -73,25 +114,41 @@ const MyWallet = () => {
       return;
     }
 
-    if (parseFloat(withdrawAmount) > (walletData?.walletBalance || 0)) {
+    const amount = parseFloat(withdrawAmount);
+    
+    // Check minimum withdrawal
+    if (amount < 100) {
+      alert('Minimum withdrawal amount is ₹100');
+      return;
+    }
+
+    if (amount > (walletData?.walletBalance || 0)) {
       alert('Insufficient balance for withdrawal');
       return;
     }
 
-    if (!accountDetails.bankName || !accountDetails.accountNumber || !accountDetails.ifsc || !accountDetails.accountHolder) {
-      alert('Please fill all bank account details');
+    if (!selectedAccountId) {
+      alert('Please select a bank account for withdrawal');
+      return;
+    }
+
+    const selectedAccount = accounts.find(acc => acc._id === selectedAccountId);
+    if (!selectedAccount) {
+      alert('Selected account not found');
       return;
     }
 
     setWithdrawLoading(true);
     try {
-      const res = await axios.post(`http://31.97.206.144:5051/api/walletwithdraw/${vendorId}`, {
-        amount: parseFloat(withdrawAmount),
+      const res = await axios.post(`https://api.vegiffyy.com/api/walletwithdraw/${vendorId}`, {
+        amount: amount,
         accountDetails: {
-          bankName: accountDetails.bankName,
-          accountNumber: accountDetails.accountNumber,
-          ifsc: accountDetails.ifsc,
-          accountHolder: accountDetails.accountHolder
+          bankName: selectedAccount.bankName,
+          accountNumber: selectedAccount.accountNumber,
+          ifsc: selectedAccount.ifscCode,
+          accountHolder: selectedAccount.accountHolderName,
+          accountType: selectedAccount.accountType,
+          branchName: selectedAccount.branchName
         }
       });
 
@@ -112,12 +169,6 @@ const MyWallet = () => {
 
   const resetWithdrawForm = () => {
     setWithdrawAmount('');
-    setAccountDetails({
-      bankName: '',
-      accountNumber: '',
-      ifsc: '',
-      accountHolder: ''
-    });
   };
 
   const formatDate = (dateString) => {
@@ -217,6 +268,8 @@ const MyWallet = () => {
       </div>
     );
   }
+
+  const amountDetails = calculateWithdrawAmount(withdrawAmount);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -424,7 +477,7 @@ const MyWallet = () => {
                           </td>
                           <td className="py-4 px-4">
                             <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                              {request._id.slice(-8)}
+                              {request._id?.slice(-8) || ''}
                             </span>
                           </td>
                         </tr>
@@ -443,6 +496,8 @@ const MyWallet = () => {
             <h3 className="font-semibold text-blue-800 mb-2">Wallet Tips</h3>
             <ul className="text-sm text-blue-700 space-y-1">
               <li>• Funds are available for withdrawal immediately</li>
+              <li>• 2% processing fee applicable on withdrawals</li>
+              <li>• Minimum withdrawal amount is ₹100</li>
               <li>• Track all your earnings and expenses here</li>
               <li>• Contact support for any wallet-related issues</li>
             </ul>
@@ -495,91 +550,134 @@ const MyWallet = () => {
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
                   placeholder="Enter amount to withdraw"
-                  min="1"
+                  min="100"
                   max={walletData.walletBalance}
-                  step="0.01"
+                  step="1"
                   className="w-full border p-2 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Maximum: ₹{walletData.walletBalance?.toLocaleString()}
+                  Minimum: ₹100 | Maximum: ₹{walletData.walletBalance?.toLocaleString()}
                 </p>
               </div>
 
-              {/* Bank Details */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-gray-700">Bank Account Details *</h4>
-
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Account Holder Name</label>
-                  <input
-                    type="text"
-                    value={accountDetails.accountHolder}
-                    onChange={(e) => setAccountDetails(prev => ({
-                      ...prev,
-                      accountHolder: e.target.value
-                    }))}
-                    placeholder="Enter account holder name"
-                    className="w-full border p-2 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
+              {/* Amount Breakdown */}
+              {withdrawAmount && !isNaN(withdrawAmount) && parseFloat(withdrawAmount) >= 100 && (
+                <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                  <h4 className="font-medium text-blue-800 mb-2">Amount Breakdown</h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span>Withdrawal Amount:</span>
+                      <span className="font-medium">₹{amountDetails.gross}</span>
+                    </div>
+                    <div className="flex justify-between text-red-600">
+                      <span>Processing Fee (2%):</span>
+                      <span className="font-medium">- ₹{amountDetails.fee}</span>
+                    </div>
+                    <div className="flex justify-between text-green-700 border-t border-blue-200 pt-1 mt-1">
+                      <span className="font-medium">You will receive:</span>
+                      <span className="font-bold">₹{amountDetails.net}</span>
+                    </div>
+                  </div>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Bank Name</label>
-                  <input
-                    type="text"
-                    value={accountDetails.bankName}
-                    onChange={(e) => setAccountDetails(prev => ({
-                      ...prev,
-                      bankName: e.target.value
-                    }))}
-                    placeholder="Enter bank name"
-                    className="w-full border p-2 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Account Number</label>
-                  <input
-                    type="text"
-                    inputMode="numeric" // 👈 numeric keyboard but value string rahegi
-                    pattern="[0-9]*"
-                    value={accountDetails.accountNumber}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (/^\d*$/.test(val)) {   // only digits allowed
-                        setAccountDetails(prev => ({
-                          ...prev,
-                          accountNumber: val
-                        }));
-                      }
-                    }}
-                    maxLength={50} // 👈 optional (increase limit)
-                    placeholder="Enter account number"
-                    className="w-full border p-2 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
-
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">IFSC Code</label>
-                  <input
-                    type="text"
-                    value={accountDetails.ifsc}
-                    onChange={(e) => setAccountDetails(prev => ({
-                      ...prev,
-                      ifsc: e.target.value
-                    }))}
-                    placeholder="Enter IFSC code"
-                    className="w-full border p-2 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
+              {/* Bank Account Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Bank Account *
+                </label>
+                
+                {accountLoading ? (
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="text-sm text-gray-500 mt-2">Loading accounts...</p>
+                  </div>
+                ) : accounts.length === 0 ? (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                    <p className="text-sm text-yellow-800">
+                      No bank accounts found. Please add a bank account first.
+                    </p>
+                    <a 
+                      href="/vendor/accounts" 
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center mt-2"
+                    >
+                      <FiUser className="mr-1" />
+                      Add Bank Account
+                    </a>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {accounts.map((account) => (
+                      <div
+                        key={account._id}
+                        className={`p-3 border rounded cursor-pointer transition-all ${selectedAccountId === account._id
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 hover:bg-gray-50'
+                          }`}
+                        onClick={() => setSelectedAccountId(account._id)}
+                      >
+                        <div className="flex items-start">
+                          <div className={`w-4 h-4 border rounded-full flex items-center justify-center mr-3 mt-1 ${selectedAccountId === account._id
+                              ? 'border-green-500 bg-green-500'
+                              : 'border-gray-400'
+                            }`}>
+                            {selectedAccountId === account._id && (
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex justify-between">
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  {account.accountHolderName}
+                                  {account.isPrimary && (
+                                    <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">
+                                      Primary
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {account.bankName} • {account.accountType}
+                                </p>
+                              </div>
+                              {selectedAccountId === account._id && (
+                                <FiCheckCircle className="text-green-500 ml-2" />
+                              )}
+                            </div>
+                            <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-500">
+                              <div>
+                                <span className="font-medium">A/C:</span> ****{account.accountNumber?.slice(-4)}
+                              </div>
+                              <div>
+                                <span className="font-medium">IFSC:</span> {account.ifscCode}
+                              </div>
+                            </div>
+                            <div className="mt-1 text-xs text-gray-500">
+                              <FiFileText className="inline mr-1" />
+                              {account.branchName}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Info Note */}
               <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                <p className="text-sm text-yellow-800">
-                  Withdrawal requests are processed within 2-3 business days. You will receive a confirmation email once processed.
-                </p>
+                <div className="flex items-start">
+                  <FiAlertCircle className="text-yellow-600 mr-2 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-yellow-800 font-medium">Important Notes:</p>
+                    <ul className="text-xs text-yellow-700 mt-1 space-y-1">
+                      <li>• 2% processing fee will be deducted from withdrawal amount</li>
+                      <li>• Minimum withdrawal amount is ₹100</li>
+                      <li>• Requests are processed within 2-3 business days</li>
+                      <li>• You will receive confirmation email once processed</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -596,10 +694,23 @@ const MyWallet = () => {
               </button>
               <button
                 onClick={handleWithdraw}
-                disabled={withdrawLoading || !withdrawAmount || !accountDetails.bankName || !accountDetails.accountNumber || !accountDetails.ifsc || !accountDetails.accountHolder}
+                disabled={
+                  withdrawLoading || 
+                  !withdrawAmount || 
+                  !selectedAccountId || 
+                  parseFloat(withdrawAmount) < 100 ||
+                  parseFloat(withdrawAmount) > (walletData?.walletBalance || 0)
+                }
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50"
               >
-                {withdrawLoading ? "Processing..." : "Submit Request"}
+                {withdrawLoading ? (
+                  <>
+                    <FiLoader className="animate-spin inline mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  'Submit Request'
+                )}
               </button>
             </div>
           </div>

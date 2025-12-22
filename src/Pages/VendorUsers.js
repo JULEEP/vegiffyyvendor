@@ -30,7 +30,7 @@ const VendorUsers = () => {
         return;
       }
 
-      const response = await fetch(`http://31.97.206.144:5051/api/vendor/allusers/${vendorId}`);
+      const response = await fetch(`https://api.vegiffyy.com/api/vendor/allusers/${vendorId}`);
       const result = await response.json();
 
       if (result.message === "Users found successfully") {

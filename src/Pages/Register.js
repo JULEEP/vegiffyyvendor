@@ -1,5 +1,38 @@
 import React, { useState, useRef } from "react";
-import { FiUpload, FiX, FiMapPin, FiMail, FiPhone, FiDollarSign, FiStar, FiNavigation, FiLock, FiFileText, FiDownload } from "react-icons/fi";
+import {
+  FiUpload,
+  FiX,
+  FiMapPin,
+  FiMail,
+  FiPhone,
+  FiDollarSign,
+  FiStar,
+  FiNavigation,
+  FiLock,
+  FiFileText,
+  FiDownload,
+  FiPercent,
+  FiHome,
+  FiMap,
+  FiUser,
+  FiClipboard,
+  FiFile,
+  FiImage,
+  FiCheckCircle,
+  FiAlertCircle
+} from "react-icons/fi";
+import { 
+  MdRestaurant, 
+  MdLocationOn, 
+  MdDescription,
+  MdPhone,
+  MdEmail,
+  MdAttachMoney,
+  MdDiscount,
+  MdBusiness,
+  MdSecurity,
+  MdAssignment
+} from "react-icons/md";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
@@ -18,7 +51,8 @@ const AddVendorForm = () => {
     password: "",
     lat: "",
     lng: "",
-    commission: ""
+    commission: "",
+    discount: ""
   });
 
   const [files, setFiles] = useState({
@@ -26,7 +60,8 @@ const AddVendorForm = () => {
     gstCertificate: null,
     fssaiLicense: null,
     panCard: null,
-    aadharCard: null
+    aadharCardFront: null,
+    aadharCardBack: null
   });
 
   const [previews, setPreviews] = useState({
@@ -34,250 +69,226 @@ const AddVendorForm = () => {
     gstCertificate: null,
     fssaiLicense: null,
     panCard: null,
-    aadharCard: null
+    aadharCardFront: null,
+    aadharCardBack: null
   });
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState({ type: "", text: "" });
   const [showPassword, setShowPassword] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [totalFileSize, setTotalFileSize] = useState(0);
 
   const fileRefs = {
     image: useRef(null),
     gstCertificate: useRef(null),
     fssaiLicense: useRef(null),
     panCard: useRef(null),
-    aadharCard: useRef(null)
+    aadharCardFront: useRef(null),
+    aadharCardBack: useRef(null)
   };
 
+  // File size calculation
+  const calculateTotalSize = (filesObj) => {
+    let total = 0;
+    Object.values(filesObj).forEach(file => {
+      if (file) total += file.size;
+    });
+    return total;
+  };
+
+  // Image compression function
+  const compressImage = async (file, maxWidth = 1024, quality = 0.7) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          // Calculate new dimensions
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob(
+            (blob) => {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              });
+              resolve(compressedFile);
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+      };
+    });
+  };
+
+  // Generate Declaration PDF
   const generateDeclarationPDF = () => {
     const doc = new jsPDF();
     
-    // Add green header
-    doc.setFillColor(34, 197, 94);
-    doc.rect(0, 0, 210, 30, 'F');
-    
-    // Title
-    doc.setFontSize(20);
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DECLARATION LETTER (PURE VEGETARIAN HOTEL)', 105, 15, { align: 'center' });
-    
-    // Date section
-    doc.setFontSize(12);
-    doc.setTextColor(0, 0, 0);
-    doc.text('Date: ___ / ___ / ______', 20, 45);
-    
-    // To section
-    doc.setFont('helvetica', 'bold');
-    doc.text('To', 20, 60);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Vegiffyy – Pure Vegetarian Food Delivery App', 20, 70);
-    doc.text('(Operated by Jainity Eats India Private Limited)', 20, 77);
-    
-    // Subject
-    doc.setFont('helvetica', 'bold');
-    doc.text('Subject: Declaration of Pure Vegetarian Restaurant', 20, 92);
-    
-    // Declaration content
-    const declarationText = [
-      `I, __________________________, Proprietor / Authorized Signatory of`,
-      `Hotel / Restaurant Name: __________________________`,
-      `Address: _________________________________________`,
-      ``,
-      `do hereby solemnly declare and affirm that:`,
-      ``,
-      `1. Our restaurant / hotel is a 100% Pure Vegetarian establishment.`,
-      ``,
-      `2. We do not prepare, store, sell, or serve any kind of non-vegetarian food,`,
-      `   including egg, meat, fish, or seafood.`,
-      ``,
-      `3. All ingredients, raw materials, and food preparation processes followed`,
-      `   in our premises strictly comply with pure vegetarian standards.`,
-      ``,
-      `4. We understand that Vegiffyy partners exclusively with vegetarian vendors,`,
-      `   and any violation of this declaration may lead to immediate delisting`,
-      `   or termination from the platform.`,
-      ``,
-      `5. We confirm that the information provided above is true and correct to`,
-      `   the best of our knowledge and belief.`,
-      ``,
-      `This declaration is provided for the purpose of onboarding and continued`,
-      `association with Vegiffyy.`,
-      ``,
-      `Vendor Name: __________________________`,
-      `Authorized Person Name: __________________________`,
-      `Designation: __________________________`,
-      `Mobile Number: __________________________`,
-      `Signature: __________________________`
-    ];
-
-    let yPosition = 110;
-    declarationText.forEach(line => {
-      if (yPosition > 270) {
-        doc.addPage();
-        yPosition = 20;
-      }
-      doc.setFontSize(10);
-      doc.text(line, 20, yPosition);
-      yPosition += 6;
-    });
-
-    // Add footer
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.text('Generated by Vegiffyy - India\'s Trusted Pure Vegetarian Food Platform', 105, 285, { align: 'center' });
-
-    // Save the PDF
-    doc.save('Vegiffyy-Declaration-Form.pdf');
-  };
-
-  const generateVendorAgreementPDF = () => {
-    const doc = new jsPDF();
-    
-    // Add green header
-    doc.setFillColor(34, 197, 94);
+    // Header
+    doc.setFillColor(46, 125, 50);
     doc.rect(0, 0, 210, 30, 'F');
     
     // Title
     doc.setFontSize(18);
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.text('VENDOR AGREEMENT', 105, 15, { align: 'center' });
+    doc.text('DECLARATION LETTER', 105, 15, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text('(Pure Vegetarian Restaurant)', 105, 22, { align: 'center' });
     
-    // Date
-    doc.setFontSize(10);
-    doc.setTextColor(255, 255, 255);
-    doc.text('Date: ___ / ___ / _________', 20, 25);
-    
-    // Reset text color for content
+    // Content
+    doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
     
-    // Agreement content
-    const agreementContent = [
-      "This Vendor Agreement (\"Agreement\") is made and entered into on ___ / ___ / _________",
-      "",
-      "BETWEEN",
-      "",
-      "Jainity Eats India Private Limited,",
-      "A company incorporated under the Companies Act, 2013,",
-      "Having its registered office at:",
-      "781, Sadar Bazaar, Bolarum, Secunderabad, Telangana – 500010",
-      "(Hereinafter referred to as \"Company\", which expression shall include its successors and assigns)",
-      "",
-      "AND",
-      "",
-      "Vendor Name: ______________________________",
-      "Business Address: ____________________________",
-      "Type of Business: Pure Vegetarian Hotel / Restaurant / Sweet Shop / Juice Center",
-      "(Hereinafter referred to as \"Vendor\")",
-      "",
-      "The Company and Vendor are hereinafter individually referred to as a \"Party\" and collectively as the \"Parties\".",
-      "---",
-      "1. PURPOSE OF AGREEMENT",
-      "The Vendor agrees to list and sell 100% Pure Vegetarian food products through the Company's",
-      "mobile application \"Vegiffyy\", owned and operated by Jainity Eats India Private Limited.",
-      "---",
-      "2. VENDOR DECLARATION",
-      "The Vendor hereby declares and confirms that:",
-      "- The establishment serves only Pure Vegetarian food.",
-      "- No non-vegetarian food, eggs, or related products are prepared or sold.",
-      "- The Vendor shall maintain hygiene, food safety, and quality standards as per applicable laws.",
-      "---",
-      "3. COMMISSION & PAYMENT",
-      `The Vendor agrees to pay the Company a commission of ${form.commission || "_____"} % on each`,
-      "successful order processed through the Vegiffyy platform.",
-      "Payments shall be settled as per the Company's payout cycle, after deducting applicable",
-      "taxes, charges, and commissions.",
-      "---",
-      "4. ORDER FULFILLMENT",
-      "The Vendor shall prepare and deliver orders within the time committed on the Vegiffyy app.",
-      "The Vendor is responsible for food quality, portion size, and proper packaging.",
-      "Any complaints regarding food quality will be the Vendor's responsibility.",
-      "---",
-      "5. DELIVERY",
-      "Delivery may be managed by the Company or Vendor, based on mutual understanding.",
-      "The Company may offer free delivery on orders above ₹199, subject to Company policies.",
-      "---",
-      "6. BRANDING & INTELLECTUAL PROPERTY",
-      "The Vendor allows the Company to display the Vendor's name, menu, logo, and images on the",
-      "Vegiffyy platform for marketing purposes.",
-      "This Agreement does not transfer ownership of any intellectual property to either Party.",
-      "---",
-      "7. TERM & TERMINATION",
-      "This Agreement shall be valid from the date mentioned above and remain in force until terminated.",
-      "Either Party may terminate this Agreement by giving 15 days' written notice.",
-      "Immediate termination may occur in case of breach, misrepresentation, or violation of",
-      "vegetarian commitment.",
-      "---",
-      "8. COMPLIANCE WITH LAWS",
-      "The Vendor shall comply with:",
-      "- FSSAI regulations",
-      "- GST and local municipal rules",
-      "- All applicable food and safety laws",
-      "---",
-      "9. CONFIDENTIALITY",
-      "Both Parties agree to keep all business, financial, and customer-related information confidential.",
-      "---",
-      "10. GOVERNING LAW & JURISDICTION",
-      "This Agreement shall be governed by and construed in accordance with the laws of India.",
-      "Courts of Telangana shall have exclusive jurisdiction.",
-      "---",
-      "11. ENTIRE AGREEMENT",
-      "This Agreement constitutes the entire understanding between the Parties and supersedes all",
-      "prior discussions or agreements.",
-      "---",
-      "IN WITNESS WHEREOF, the Parties have hereunto set their hands on the date first written above.",
-      "---",
-      "For Jainity Eats India Private Limited",
-      "",
-      "Authorized Signatory: ________________________",
-      "Name: ________________________",
-      "Designation: ________________________",
-      "Signature: ________________________",
-      "Date: ________________________",
-      "",
-      "---",
-      "For Vendor",
-      "",
-      "Vendor Name: ________________________",
-      "Authorized Signatory: ________________________",
-      "Signature: ________________________",
-      "Date: ________________________"
+    const content = [
+      'Date: ___________________________',
+      '',
+      'To,',
+      'Vegiffyy - Pure Vegetarian Food Delivery App',
+      'Jainity Eats India Private Limited',
+      '',
+      'Subject: Declaration of Pure Vegetarian Restaurant',
+      '',
+      'I, ________________________________________, Proprietor / Authorized Signatory of',
+      '',
+      `Restaurant Name: ${form.restaurantName || '___________________________'}`,
+      `Address: ${form.locationName || '___________________________'}`,
+      '',
+      'do hereby solemnly declare and affirm that:',
+      '',
+      '1. Our restaurant is a 100% Pure Vegetarian establishment.',
+      '2. We do not prepare, store, sell, or serve any non-vegetarian food items.',
+      '3. All ingredients and food preparation processes follow pure vegetarian standards.',
+      '4. We comply with FSSAI regulations and maintain proper hygiene standards.',
+      '5. We understand any violation may lead to immediate delisting from Vegiffyy.',
+      '',
+      'This declaration is made for the purpose of onboarding with Vegiffyy platform.',
+      '',
+      'Vendor Signature: _________________________',
+      'Name: _________________________',
+      'Mobile: _________________________',
+      'Date: _________________________'
     ];
 
     let yPosition = 40;
-    doc.setFontSize(9);
+    content.forEach(line => {
+      if (yPosition > 270) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      doc.text(line, 20, yPosition);
+      yPosition += 7;
+    });
+
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Generated by Vegiffyy Platform', 105, 285, { align: 'center' });
+
+    doc.save('Vegiffyy-Declaration.pdf');
+  };
+
+  // Generate Vendor Agreement PDF
+  const generateVendorAgreementPDF = () => {
+    const doc = new jsPDF();
     
+    // Header
+    doc.setFillColor(46, 125, 50);
+    doc.rect(0, 0, 210, 30, 'F');
+    
+    // Title
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.text('VENDOR AGREEMENT', 105, 15, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.text('Vegiffyy - Pure Vegetarian Food Delivery Platform', 105, 22, { align: 'center' });
+    
+    // Content
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    
+    const agreementContent = [
+      'This Vendor Agreement is made on ___________________________',
+      '',
+      'BETWEEN',
+      '',
+      'Jainity Eats India Private Limited',
+      '(Hereinafter referred to as "Company")',
+      '',
+      'AND',
+      '',
+      `Vendor: ${form.restaurantName || '___________________________'}`,
+      `Address: ${form.locationName || '___________________________'}`,
+      '(Hereinafter referred to as "Vendor")',
+      '',
+      'AGREEMENT TERMS:',
+      '',
+      '1. COMMISSION STRUCTURE',
+      `   Vendor agrees to pay ${form.commission || '___'}% commission on all orders.`,
+      '',
+      '2. PAYMENT TERMS',
+      '   Payments will be settled weekly after deducting applicable charges.',
+      '',
+      '3. QUALITY STANDARDS',
+      '   Vendor shall maintain highest food quality and hygiene standards.',
+      '',
+      '4. DELIVERY COMMITMENT',
+      '   Orders must be prepared within promised time frames.',
+      '',
+      '5. TERMINATION',
+      '   Either party may terminate with 15 days written notice.',
+      '',
+      '6. GOVERNING LAW',
+      '   This agreement shall be governed by laws of India.',
+      '',
+      'IN WITNESS WHEREOF, the parties have executed this agreement.',
+      '',
+      '_________________________',
+      'For Jainity Eats India Private Limited',
+      '',
+      '_________________________',
+      'Vendor Signature',
+      '',
+      'Date: _________________________'
+    ];
+
+    let yPosition = 40;
     agreementContent.forEach(line => {
       if (yPosition > 280) {
         doc.addPage();
         yPosition = 20;
       }
       
-      if (line.startsWith("---")) {
-        // Draw a line for section separators
-        doc.line(20, yPosition, 190, yPosition);
-        yPosition += 8;
-      } else if (line.includes("AGREEMENT") || line.match(/^\d+\./)) {
-        // Section headers
+      if (line.includes('AGREEMENT') || line.match(/^\d+\./)) {
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
         doc.text(line, 20, yPosition);
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        yPosition += 6;
       } else {
         doc.text(line, 20, yPosition);
-        yPosition += 5;
       }
+      yPosition += 6;
     });
 
-    // Add footer
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.text('Generated by Vegiffyy - India\'s Trusted Pure Vegetarian Food Platform', 105, 285, { align: 'center' });
-
-    // Save the PDF
     doc.save('Vegiffyy-Vendor-Agreement.pdf');
   };
 
@@ -285,32 +296,51 @@ const AddVendorForm = () => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleFileChange = (fileType, file) => {
+  const handleFileChange = async (fileType, file) => {
     if (!file) return;
 
-    setFiles(prev => ({ ...prev, [fileType]: file }));
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: "error", text: `${file.name} exceeds 5MB size limit` });
+      return;
+    }
+
+    // Compress if it's an image
+    let processedFile = file;
+    if (file.type.startsWith('image/')) {
+      setMessage({ type: "info", text: "Compressing image..." });
+      processedFile = await compressImage(file);
+    }
+
+    setFiles(prev => ({ ...prev, [fileType]: processedFile }));
+    setTotalFileSize(calculateTotalSize({ ...files, [fileType]: processedFile }));
     
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = () => {
         setPreviews(prev => ({ ...prev, [fileType]: reader.result }));
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(processedFile);
     } else {
       setPreviews(prev => ({ ...prev, [fileType]: 'pdf' }));
     }
+    
+    setMessage({ type: "success", text: `${file.name} added successfully` });
   };
 
   const removeFile = (fileType) => {
     setFiles(prev => ({ ...prev, [fileType]: null }));
     setPreviews(prev => ({ ...prev, [fileType]: null }));
+    setTotalFileSize(calculateTotalSize({ ...files, [fileType]: null }));
   };
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setMessage("Geolocation not supported");
+      setMessage({ type: "error", text: "Geolocation not supported by your browser" });
       return;
     }
+
+    setMessage({ type: "info", text: "Getting your location..." });
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -320,10 +350,10 @@ const AddVendorForm = () => {
           lat: latitude.toFixed(6),
           lng: longitude.toFixed(6)
         }));
-        setMessage("Location fetched successfully");
+        setMessage({ type: "success", text: "Location fetched successfully" });
       },
       (error) => {
-        setMessage("Failed to get location");
+        setMessage({ type: "error", text: "Please allow location access or enter manually" });
       }
     );
   };
@@ -332,16 +362,26 @@ const AddVendorForm = () => {
     if (!form.restaurantName) return "Restaurant name is required";
     if (!form.locationName) return "Location name is required";
     if (!form.email) return "Email is required";
-    if (!form.mobile) return "Mobile is required";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return "Please enter a valid email";
+    if (!form.mobile) return "Mobile number is required";
+    if (!/^\d{10}$/.test(form.mobile)) return "Please enter a valid 10-digit mobile number";
     if (!form.password) return "Password is required";
     if (form.password.length < 6) return "Password must be at least 6 characters";
     if (!form.commission) return "Commission percentage is required";
-    if (isNaN(form.commission) || parseFloat(form.commission) < 0 || parseFloat(form.commission) > 50) return "Commission must be a valid percentage between 0 and 50";
+    if (isNaN(form.commission) || parseFloat(form.commission) < 0 || parseFloat(form.commission) > 50) return "Commission must be between 0 and 50%";
+    if (!form.discount) return "Discount percentage is required";
+    if (isNaN(form.discount) || parseFloat(form.discount) < 0 || parseFloat(form.discount) > 100) return "Discount must be between 0 and 100%";
     if (!form.lat || !form.lng) return "Location coordinates are required";
     if (!files.image) return "Restaurant image is required";
     if (!files.fssaiLicense) return "FSSAI license is required";
     if (!files.panCard) return "PAN card is required";
-    if (!files.aadharCard) return "Aadhar card is required";
+    if (!files.aadharCardFront) return "Aadhar Card Front is required";
+    
+    // Check total file size
+    if (totalFileSize > 15 * 1024 * 1024) {
+      return "Total files size exceeds 15MB limit. Please compress your files.";
+    }
+    
     return null;
   };
 
@@ -350,19 +390,19 @@ const AddVendorForm = () => {
     
     const error = validateForm();
     if (error) {
-      setMessage(error);
+      setMessage({ type: "error", text: error });
       return;
     }
 
     setLoading(true);
-    setMessage("");
+    setMessage({ type: "info", text: "Creating restaurant..." });
 
     try {
       const formData = new FormData();
       
       // Add form fields
       Object.keys(form).forEach(key => {
-        if (form[key]) formData.append(key, form[key]);
+        if (form[key] !== "") formData.append(key, form[key]);
       });
 
       // Add files
@@ -370,48 +410,83 @@ const AddVendorForm = () => {
         if (files[key]) formData.append(key, files[key]);
       });
 
-      const res = await axios.post("http://31.97.206.144:5051/api/restaurant", formData);
+      // Configure axios for progress tracking
+      const config = {
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 300000 // 5 minutes timeout
+      };
+
+      const res = await axios.post("https://api.vegiffyy.com/api/restaurant", formData, config);
       
       if (res.data.success) {
-        setMessage("Restaurant created successfully!");
+        setMessage({ type: "success", text: "Restaurant created successfully!" });
         setTimeout(() => navigate("/"), 2000);
       } else {
-        setMessage(res.data.message || "Creation failed");
+        setMessage({ type: "error", text: res.data.message || "Creation failed" });
       }
     } catch (err) {
-      setMessage(err.response?.data?.message || "Server error");
+      if (err.code === 'ECONNABORTED') {
+        setMessage({ type: "error", text: "Request timeout. Please check your internet connection." });
+      } else if (err.response?.status === 413) {
+        setMessage({ type: "error", text: "File size too large. Please compress images before uploading." });
+      } else {
+        setMessage({ type: "error", text: err.response?.data?.message || "Server error. Please try again." });
+      }
     } finally {
       setLoading(false);
+      setUploadProgress(0);
     }
   };
 
-  const FileUpload = ({ title, fileType, required = false, accept = "image/*,.pdf" }) => (
-    <div className="border-2 border-green-200 rounded-xl p-4 bg-green-50 hover:bg-green-100 transition-all duration-300">
-      <label className="block font-bold text-green-800 mb-2">
-        {title} {required && <span className="text-red-500">*</span>}
-      </label>
+  const FileUpload = ({ title, fileType, required = false, accept = "image/*,.pdf", badgeText, icon: Icon }) => (
+    <div className="border border-gray-300 rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-all duration-300">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="text-green-600" />}
+          <label className="block font-semibold text-gray-800">
+            {title} {required && <span className="text-red-500">*</span>}
+          </label>
+        </div>
+        {badgeText && (
+          <span className={`px-2 py-1 text-xs rounded font-medium ${
+            badgeText === "Required" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+          }`}>
+            {badgeText}
+          </span>
+        )}
+      </div>
       
       <div className="flex items-center gap-4">
         {previews[fileType] ? (
           <div className="relative">
             {previews[fileType] === 'pdf' ? (
-              <div className="w-20 h-20 bg-red-100 rounded-xl border-2 border-red-300 flex items-center justify-center shadow-lg">
-                <FiFileText className="text-red-600 text-2xl" />
+              <div className="w-20 h-20 bg-red-50 rounded-lg border border-red-200 flex items-center justify-center">
+                <FiFileText className="text-red-500 text-xl" />
               </div>
             ) : (
-              <img src={previews[fileType]} alt="Preview" className="w-20 h-20 rounded-xl border-2 border-green-300 object-cover shadow-lg" />
+              <img 
+                src={previews[fileType]} 
+                alt="Preview" 
+                className="w-20 h-20 rounded-lg border border-gray-300 object-cover" 
+              />
             )}
             <button
               type="button"
               onClick={() => removeFile(fileType)}
-              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-lg"
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
             >
               <FiX size={12} />
             </button>
           </div>
         ) : (
-          <div className="w-20 h-20 border-2 border-dashed border-green-300 rounded-xl flex items-center justify-center text-green-400 bg-white">
-            <FiUpload className="text-2xl" />
+          <div className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 bg-white">
+            <FiUpload className="text-xl" />
           </div>
         )}
         
@@ -426,13 +501,15 @@ const AddVendorForm = () => {
           <button
             type="button"
             onClick={() => fileRefs[fileType].current?.click()}
-            className="bg-gradient-to-r from-green-600 to-green-800 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-900 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-bold flex items-center gap-2"
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
           >
             <FiUpload />
             Choose File
           </button>
           {files[fileType] && (
-            <p className="text-sm text-green-700 font-medium mt-2">{files[fileType].name}</p>
+            <p className="text-sm text-gray-600 mt-1">
+              {files[fileType].name} ({(files[fileType].size / 1024 / 1024).toFixed(2)} MB)
+            </p>
           )}
         </div>
       </div>
@@ -440,99 +517,140 @@ const AddVendorForm = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-white py-8 px-4">
-      <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl border-2 border-green-200 overflow-hidden">
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg border border-gray-200">
         {/* Header */}
-        <div className="bg-gradient-to-r from-green-600 to-green-800 text-white p-8">
+        <div className="bg-green-600 text-white p-6 rounded-t-xl">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-black mb-2">Add New Restaurant</h1>
-              <p className="text-green-100 font-medium">Join India's Trusted Pure Vegetarian Food Platform</p>
+              <h1 className="text-2xl font-bold mb-1">Add New Restaurant</h1>
+              <p className="text-green-100">Register your restaurant on Vegiffyy platform</p>
             </div>
-            <div className="w-16 h-16 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center text-2xl">
-              🏪
-            </div>
+            <MdRestaurant className="text-3xl" />
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Restaurant Image */}
-          <FileUpload title="🍽️ Restaurant Image" fileType="image" required accept="image/*" />
+          <FileUpload 
+            title="Restaurant Image" 
+            fileType="image" 
+            required 
+            accept="image/*" 
+            badgeText="Required"
+            icon={FiImage}
+          />
+
+          {/* Progress Bar */}
+          {uploadProgress > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Uploading...</span>
+                <span className="text-green-600 font-medium">{uploadProgress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Total file size: {(totalFileSize / 1024 / 1024).toFixed(2)} MB / 15 MB
+              </p>
+            </div>
+          )}
 
           {/* Basic Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="block font-bold text-green-800 mb-2">🏷️ Restaurant Name *</label>
+              <label className="block font-medium text-gray-700">
+                <MdRestaurant className="inline mr-2 text-green-600" />
+                Restaurant Name *
+              </label>
               <input
                 type="text"
                 name="restaurantName"
                 value={form.restaurantName}
                 onChange={handleChange}
-                className="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 placeholder="Enter restaurant name"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="block font-bold text-green-800 mb-2">📍 Location Name *</label>
+              <label className="block font-medium text-gray-700">
+                <MdLocationOn className="inline mr-2 text-green-600" />
+                Location Name *
+              </label>
               <input
                 type="text"
                 name="locationName"
                 value={form.locationName}
                 onChange={handleChange}
-                className="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 placeholder="Enter location name"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="block font-bold text-green-800 mb-2">📧 Email *</label>
+              <label className="block font-medium text-gray-700">
+                <MdEmail className="inline mr-2 text-green-600" />
+                Email *
+              </label>
               <input
                 type="email"
                 name="email"
                 value={form.email}
                 onChange={handleChange}
-                className="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
-                placeholder="Enter email"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter email address"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="block font-bold text-green-800 mb-2">📱 Mobile *</label>
+              <label className="block font-medium text-gray-700">
+                <MdPhone className="inline mr-2 text-green-600" />
+                Mobile Number *
+              </label>
               <input
                 type="tel"
                 name="mobile"
                 value={form.mobile}
                 onChange={handleChange}
-                className="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
-                placeholder="Enter mobile number"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="10-digit mobile number"
+                maxLength="10"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="block font-bold text-green-800 mb-2">🔐 Password *</label>
+              <label className="block font-medium text-gray-700">
+                <MdSecurity className="inline mr-2 text-green-600" />
+                Password *
+              </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
                   value={form.password}
                   onChange={handleChange}
-                  className="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 pr-20"
-                  placeholder="Enter password"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 pr-20 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="Minimum 6 characters"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-green-600 font-medium hover:text-green-800 transition-colors"
+                  className="absolute right-2 top-2 text-sm text-green-600 hover:text-green-800"
                 >
-                  {showPassword ? "🙈 Hide" : "👁️ Show"}
+                  {showPassword ? "Hide" : "Show"}
                 </button>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="block font-bold text-green-800 mb-2">
-                💰 Commission % *
+              <label className="block font-medium text-gray-700">
+                <MdAttachMoney className="inline mr-2 text-green-600" />
+                Commission % *
               </label>
               <div className="relative">
                 <input
@@ -540,83 +658,156 @@ const AddVendorForm = () => {
                   name="commission"
                   value={form.commission}
                   onChange={handleChange}
-                  className="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 pr-16"
-                  placeholder="Enter commission percentage"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 pr-12 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="0-50%"
                   min="0"
                   max="50"
                   step="0.1"
-                  required
                 />
-                <div className="absolute right-3 top-3 text-green-600 font-bold">
-                  %
-                </div>
+                <span className="absolute right-3 top-2 text-gray-500">%</span>
               </div>
-              <p className="text-sm text-green-600 mt-1">
-                Commission percentage applied on each order
-              </p>
             </div>
 
             <div className="space-y-2">
-              <label className="block font-bold text-green-800 mb-2">📊 GST Number</label>
+              <label className="block font-medium text-gray-700">
+                <MdDiscount className="inline mr-2 text-green-600" />
+                Discount % *
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  name="discount"
+                  value={form.discount}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 pr-12 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="0-100%"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  required
+                />
+                <span className="absolute right-3 top-2 text-gray-500">%</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block font-medium text-gray-700">
+                <MdBusiness className="inline mr-2 text-green-600" />
+                GST Number (Optional)
+              </label>
               <input
                 type="text"
                 name="gstNumber"
                 value={form.gstNumber}
                 onChange={handleChange}
-                className="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 placeholder="Enter GST number"
               />
             </div>
           </div>
 
-          {/* Documents */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FileUpload title="📄 GST Certificate" fileType="gstCertificate" />
-            <FileUpload title="🥘 FSSAI License *" fileType="fssaiLicense" required />
-            <FileUpload title="💳 PAN Card *" fileType="panCard" required />
-            <FileUpload title="🆔 Aadhar Card *" fileType="aadharCard" required />
+          {/* Document Uploads */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
+              <FiFile className="inline mr-2" />
+              Required Documents
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FileUpload 
+                title="GST Certificate" 
+                fileType="gstCertificate" 
+                accept=".pdf,image/*"
+                badgeText="Optional"
+                icon={FiFileText}
+              />
+              <FileUpload 
+                title="FSSAI License" 
+                fileType="fssaiLicense" 
+                required 
+                accept=".pdf,image/*"
+                badgeText="Required"
+                icon={FiClipboard}
+              />
+              <FileUpload 
+                title="PAN Card" 
+                fileType="panCard" 
+                required 
+                accept=".pdf,image/*"
+                badgeText="Required"
+                icon={FiUser}
+              />
+            </div>
           </div>
 
-          {/* Location */}
-          <div className="border-2 border-green-200 rounded-2xl p-6 bg-green-50 hover:bg-green-100 transition-all duration-300">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+          {/* Aadhar Card Section */}
+          <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+            <h3 className="font-semibold text-blue-800 text-lg mb-3">
+              <FiUser className="inline mr-2" />
+              Aadhar Card Documents
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FileUpload 
+                title="Aadhar Card Front" 
+                fileType="aadharCardFront" 
+                required 
+                accept="image/*"
+                badgeText="Required"
+                icon={FiImage}
+              />
+              <FileUpload 
+                title="Aadhar Card Back" 
+                fileType="aadharCardBack" 
+                accept="image/*"
+                badgeText="Optional"
+                icon={FiImage}
+              />
+            </div>
+          </div>
+
+          {/* Location Section */}
+          <div className="border border-green-200 rounded-lg p-4 bg-green-50">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
               <div>
-                <h3 className="font-bold text-green-800 text-xl mb-2">📍 Location Coordinates *</h3>
-                <p className="text-green-700">Get your current location automatically</p>
+                <h3 className="font-semibold text-green-800 text-lg mb-1">
+                  <FiMapPin className="inline mr-2" />
+                  Location Coordinates *
+                </h3>
+                <p className="text-green-700 text-sm">Get your current location automatically</p>
               </div>
               <button
                 type="button"
                 onClick={getCurrentLocation}
-                className="bg-gradient-to-r from-green-500 to-green-700 text-white px-6 py-3 rounded-xl hover:from-green-600 hover:to-green-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-bold flex items-center gap-2 whitespace-nowrap"
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
               >
                 <FiNavigation />
                 Get Current Location
               </button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="block font-bold text-green-800 mb-2">🌐 Latitude</label>
+                <label className="block font-medium text-gray-700">Latitude</label>
                 <input
                   type="number"
                   step="any"
                   name="lat"
                   value={form.lat}
                   onChange={handleChange}
-                  className="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   placeholder="Enter latitude"
                 />
               </div>
               
               <div className="space-y-2">
-                <label className="block font-bold text-green-800 mb-2">🌐 Longitude</label>
+                <label className="block font-medium text-gray-700">Longitude</label>
                 <input
                   type="number"
                   step="any"
                   name="lng"
                   value={form.lng}
                   onChange={handleChange}
-                  className="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   placeholder="Enter longitude"
                 />
               </div>
@@ -625,63 +816,69 @@ const AddVendorForm = () => {
 
           {/* Description */}
           <div className="space-y-2">
-            <label className="block font-bold text-green-800 mb-2">📝 Description</label>
+            <label className="block font-medium text-gray-700">
+              <MdDescription className="inline mr-2 text-green-600" />
+              Description (Optional)
+            </label>
             <textarea
               name="description"
-              rows="4"
+              rows="3"
               value={form.description}
               onChange={handleChange}
-              className="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
-              placeholder="Tell us about your restaurant..."
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              placeholder="Brief description about your restaurant..."
             />
           </div>
 
           {/* Referral Code */}
           <div className="space-y-2">
-            <label className="block font-bold text-green-800 mb-2">👥 Referral Code (Optional)</label>
+            <label className="block font-medium text-gray-700">
+              <FiStar className="inline mr-2 text-green-600" />
+              Referral Code (Optional)
+            </label>
             <input
               type="text"
               name="referralCode"
               value={form.referralCode}
               onChange={handleChange}
-              className="w-full border-2 border-green-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
               placeholder="Enter referral code"
             />
           </div>
 
-          {/* Document Download Buttons */}
-          <div className="border-2 border-blue-200 rounded-2xl p-6 bg-blue-50">
-            <h3 className="font-bold text-blue-800 text-xl mb-4">📄 Download Required Documents</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Document Download Section */}
+          <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+            <h3 className="font-semibold text-blue-800 text-lg mb-3">
+              <MdAssignment className="inline mr-2" />
+              Required Forms
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={generateDeclarationPDF}
-                className="bg-gradient-to-r from-blue-500 to-blue-700 text-white px-6 py-4 rounded-xl hover:from-blue-600 hover:to-blue-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-bold flex items-center justify-center gap-3"
+                className="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
               >
-                <FiDownload className="text-xl" />
+                <FiDownload />
                 Download Declaration Form
               </button>
               
               <button
                 type="button"
                 onClick={generateVendorAgreementPDF}
-                className="bg-gradient-to-r from-purple-500 to-purple-700 text-white px-6 py-4 rounded-xl hover:from-purple-600 hover:to-purple-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-bold flex items-center justify-center gap-3"
+                className="bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2"
               >
-                <FiFileText className="text-xl" />
+                <FiFileText />
                 Download Vendor Agreement
               </button>
             </div>
-            <p className="text-blue-700 text-sm mt-3 text-center">
-              Please download, print, sign, and upload these documents after filling
-            </p>
           </div>
 
           {/* Submit Buttons */}
-          <div className="flex flex-col md:flex-row gap-4 pt-6 border-t-2 border-green-200">
+          <div className="flex flex-col md:flex-row gap-4 pt-6 border-t">
             <button
               type="submit"
               disabled={loading}
-              className="bg-gradient-to-r from-green-600 to-green-800 text-white px-8 py-4 rounded-xl hover:from-green-700 hover:to-green-900 disabled:opacity-50 transition-all duration-300 shadow-2xl hover:shadow-3xl transform hover:scale-105 font-bold text-lg flex items-center justify-center gap-3 flex-1"
+              className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors font-medium flex items-center justify-center gap-2 flex-1"
             >
               {loading ? (
                 <>
@@ -690,27 +887,35 @@ const AddVendorForm = () => {
                 </>
               ) : (
                 <>
-                  🏪 Create Restaurant
+                  <FiCheckCircle />
+                  Create Restaurant
                 </>
               )}
             </button>
             
             <button
               type="button"
-              onClick={() => navigate("/vendorlist")}
-              className="border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white px-8 py-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 font-bold text-lg flex items-center justify-center gap-3 flex-1"
+              onClick={() => navigate(-1)}
+              className="border border-red-500 text-red-500 hover:bg-red-500 hover:text-white px-6 py-3 rounded-lg transition-colors font-medium flex items-center justify-center gap-2 flex-1"
             >
-              ❌ Cancel
+              <FiX />
+              Cancel
             </button>
           </div>
 
-          {message && (
-            <div className={`p-4 rounded-xl border-2 font-bold text-center ${
-              message.includes("successfully") 
-                ? "bg-green-100 text-green-800 border-green-300" 
-                : "bg-red-100 text-red-800 border-red-300"
+          {/* Message Display */}
+          {message.text && (
+            <div className={`p-4 rounded-lg border ${
+              message.type === "success" ? "bg-green-50 text-green-800 border-green-200" :
+              message.type === "error" ? "bg-red-50 text-red-800 border-red-200" :
+              "bg-blue-50 text-blue-800 border-blue-200"
             }`}>
-              {message}
+              <div className="flex items-center gap-2">
+                {message.type === "success" ? <FiCheckCircle /> :
+                 message.type === "error" ? <FiAlertCircle /> :
+                 <FiAlertCircle />}
+                <span className="font-medium">{message.text}</span>
+              </div>
             </div>
           )}
         </form>

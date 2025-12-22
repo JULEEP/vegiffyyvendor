@@ -27,7 +27,9 @@ import {
   FiZoomIn,
   FiDownload,
   FiCheck,
-  FiFile
+  FiFile,
+  FiPercent,
+  FiTrendingUp
 } from 'react-icons/fi';
 
 const VendorProfile = () => {
@@ -61,25 +63,27 @@ const VendorProfile = () => {
   const fetchProfileData = async () => {
     try {
       setError('');
-      const res = await axios.get(`http://31.97.206.144:5051/api/profile/${vendorId}`);
+      const res = await axios.get(`https://api.vegiffyy.com/api/profile/${vendorId}`);
       
       if (res.data?.success) {
-        setProfileData(res.data.data);
+        const data = res.data.data;
+        setProfileData(data);
         setEditForm({
-          restaurantName: res.data.data.restaurantName || '',
-          description: res.data.data.description || '',
-          locationName: res.data.data.locationName || '',
-          rating: res.data.data.rating || '',
-          status: res.data.data.status || 'active',
-          gstNumber: res.data.data.gstNumber || ''
+          restaurantName: data.restaurantName || '',
+          description: data.description || '',
+          locationName: data.locationName || '',
+          rating: data.rating || '',
+          status: data.status || 'active',
+          gstNumber: data.gstNumber || '',
+          commission: data.commission || 0
         });
 
         // Set document previews if they exist
-        if (res.data.data.declarationForm?.url) {
-          setDocPreviews(prev => ({ ...prev, declarationForm: res.data.data.declarationForm.url }));
+        if (data.declarationForm?.url) {
+          setDocPreviews(prev => ({ ...prev, declarationForm: data.declarationForm.url }));
         }
-        if (res.data.data.vendorAgreement?.url) {
-          setDocPreviews(prev => ({ ...prev, vendorAgreement: res.data.data.vendorAgreement.url }));
+        if (data.vendorAgreement?.url) {
+          setDocPreviews(prev => ({ ...prev, vendorAgreement: data.vendorAgreement.url }));
         }
       } else {
         setError(res.data?.message || 'Failed to fetch profile data');
@@ -105,7 +109,7 @@ const VendorProfile = () => {
     const { name, value } = e.target;
     setEditForm(prev => ({
       ...prev,
-      [name]: value
+      [name]: name === 'commission' ? parseFloat(value) || 0 : value
     }));
   };
 
@@ -140,7 +144,7 @@ const VendorProfile = () => {
       }
 
       const response = await axios.put(
-        `http://31.97.206.144:5051/api/restaurant/${vendorId}`,
+        `https://api.vegiffyy.com/api/restaurant/${vendorId}`,
         formData,
         {
           headers: {
@@ -179,7 +183,8 @@ const VendorProfile = () => {
       locationName: profileData.locationName || '',
       rating: profileData.rating || '',
       status: profileData.status || 'active',
-      gstNumber: profileData.gstNumber || ''
+      gstNumber: profileData.gstNumber || '',
+      commission: profileData.commission || 0
     });
     setImageFile(null);
     setImagePreview('');
@@ -229,7 +234,7 @@ const VendorProfile = () => {
       }
 
       const response = await axios.put(
-        `http://31.97.206.144:5051/api/documents/${vendorId}`,
+        `https://api.vegiffyy.com/api/documents/${vendorId}`,
         formData,
         {
           headers: {
@@ -422,6 +427,14 @@ const VendorProfile = () => {
       default:
         return <FiClock className="text-gray-600" />;
     }
+  };
+
+  // Get commission color based on value
+  const getCommissionColor = (commission) => {
+    if (commission >= 5) return 'text-red-600 bg-red-100';
+    if (commission >= 3) return 'text-orange-600 bg-orange-100';
+    if (commission >= 2) return 'text-yellow-600 bg-yellow-100';
+    return 'text-green-600 bg-green-100';
   };
 
   // Document Upload Component
@@ -722,6 +735,26 @@ const VendorProfile = () => {
                   />
                 </div>
 
+                {/* Commission */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Commission (%)
+                  </label>
+                  <input
+                    type="number"
+                    name="commission"
+                    value={editForm.commission}
+                    onChange={handleInputChange}
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Platform commission percentage
+                  </p>
+                </div>
+
                 {/* Status */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -831,6 +864,14 @@ const VendorProfile = () => {
                   </div>
                 </div>
 
+                {/* Commission Badge */}
+                <div className="absolute top-4 left-16">
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-full border ${getCommissionColor(profileData.commission)}`}>
+                    <FiPercent className="text-sm" />
+                    <span className="font-semibold">{profileData.commission || 0}% Commission</span>
+                  </div>
+                </div>
+
                 {/* Status Badge */}
                 <div className="absolute top-4 left-4">
                   <div className={`flex items-center gap-2 px-3 py-2 rounded-full border ${getStatusBadge(profileData.status)}`}>
@@ -853,6 +894,12 @@ const VendorProfile = () => {
                       <div className="flex items-center gap-2 bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">
                         <FiStar className="text-sm" />
                         <span className="font-medium">Rating: {profileData.rating || 'No Rating'}</span>
+                      </div>
+                      
+                      {/* Commission */}
+                      <div className={`flex items-center gap-2 ${getCommissionColor(profileData.commission)} px-3 py-1 rounded-full`}>
+                        <FiTrendingUp className="text-sm" />
+                        <span className="font-medium">Commission: {profileData.commission || 0}%</span>
                       </div>
                       
                       {/* Referral Code with Copy Button */}
@@ -959,6 +1006,22 @@ const VendorProfile = () => {
                       </div>
                     </div>
 
+                    {/* Commission Details */}
+                    <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
+                      <div className="p-3 bg-teal-100 rounded-full">
+                        <FiTrendingUp className="text-teal-600 text-xl" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-1">Commission Rate</h3>
+                        <p className={`text-2xl font-bold ${getCommissionColor(profileData.commission).split(' ')[0]}`}>
+                          {profileData.commission || 0}%
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Platform commission percentage on orders
+                        </p>
+                      </div>
+                    </div>
+
                     {/* Referral Information */}
                     <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
                       <div className="p-3 bg-purple-100 rounded-full">
@@ -1013,6 +1076,24 @@ const VendorProfile = () => {
                             : 'No categories assigned'
                           }
                         </p>
+                      </div>
+                    </div>
+
+                    {/* Reviews Count */}
+                    <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
+                      <div className="p-3 bg-pink-100 rounded-full">
+                        <FiStar className="text-pink-600 text-xl" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-1">Customer Reviews</h3>
+                        <p className="text-gray-700">
+                          {profileData.reviews?.length || 0} review(s)
+                        </p>
+                        {profileData.reviews?.length > 0 && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            Latest: {profileData.reviews[profileData.reviews.length - 1]?.comment?.substring(0, 30)}...
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1097,6 +1178,15 @@ const VendorProfile = () => {
                     <p className="text-2xl font-bold text-gray-900">{profileData.rating || 'N/A'}</p>
                   </div>
 
+                  {/* Commission */}
+                  <div className="bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200 rounded-xl p-4 text-center">
+                    <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <FiPercent className="text-teal-600 text-xl" />
+                    </div>
+                    <p className="text-sm text-gray-600 mb-1">Commission</p>
+                    <p className="text-2xl font-bold text-gray-900">{profileData.commission || 0}%</p>
+                  </div>
+
                   {/* Member Since */}
                   <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-4 text-center">
                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -1113,6 +1203,24 @@ const VendorProfile = () => {
                     </div>
                     <p className="text-sm text-gray-600 mb-1">Last Updated</p>
                     <p className="text-lg font-bold text-gray-900">{formatDate(profileData.updatedAt)}</p>
+                  </div>
+
+                  {/* Reviews Count */}
+                  <div className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 rounded-xl p-4 text-center">
+                    <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <FiStar className="text-pink-600 text-xl" />
+                    </div>
+                    <p className="text-sm text-gray-600 mb-1">Total Reviews</p>
+                    <p className="text-2xl font-bold text-gray-900">{profileData.reviews?.length || 0}</p>
+                  </div>
+
+                  {/* Referral Code */}
+                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-4 text-center">
+                    <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <FiGift className="text-purple-600 text-xl" />
+                    </div>
+                    <p className="text-sm text-gray-600 mb-1">Referral Code</p>
+                    <p className="text-lg font-bold text-gray-900 font-mono">{profileData.referralCode}</p>
                   </div>
                 </div>
 
@@ -1139,17 +1247,14 @@ const VendorProfile = () => {
                       </div>
                     </div>
                     <div>
-                      <span className="font-medium text-gray-700">Referral Code:</span>
-                      <p className="text-purple-600 font-medium mt-1 font-mono">{profileData.referralCode}</p>
+                      <span className="font-medium text-gray-700">Commission Rate:</span>
+                      <p className={`font-bold ${getCommissionColor(profileData.commission).split(' ')[0]} mt-1`}>
+                        {profileData.commission || 0}%
+                      </p>
                     </div>
                     <div>
-                      <span className="font-medium text-gray-700">Reviews:</span>
-                      <p className="text-gray-600 mt-1">
-                        {profileData.reviews && profileData.reviews.length > 0 
-                          ? `${profileData.reviews.length} reviews` 
-                          : 'No reviews yet'
-                        }
-                      </p>
+                      <span className="font-medium text-gray-700">Total Reviews:</span>
+                      <p className="text-gray-900 font-bold mt-1">{profileData.reviews?.length || 0}</p>
                     </div>
                   </div>
                 </div>
@@ -1180,6 +1285,10 @@ const VendorProfile = () => {
               <li className="flex items-start gap-2">
                 <span className="text-orange-500 mt-1">•</span>
                 <span>Share your referral code <strong>{profileData.referralCode}</strong> to earn rewards</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-orange-500 mt-1">•</span>
+                <span>Your current commission rate is <strong>{profileData.commission || 0}%</strong> on all orders</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-orange-500 mt-1">•</span>

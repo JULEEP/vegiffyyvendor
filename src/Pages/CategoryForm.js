@@ -85,7 +85,7 @@ const CategoryForm = () => {
 
       console.log("📦 Sending form data to backend...");
 
-      const res = await axios.post("http://31.97.206.144:5051/api/category", formData, {
+      const res = await axios.post("https://api.vegiffyy.com/api/category", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 

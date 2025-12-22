@@ -37,7 +37,7 @@ const CategoryList = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://31.97.206.144:5051/api/category');
+      const response = await axios.get('https://api.vegiffyy.com/api/category');
       if (response.data.success) {
         setCategories(response.data.data);
       }
@@ -59,7 +59,7 @@ const CategoryList = () => {
     }
 
     try {
-      const response = await axios.delete(`http://31.97.206.144:5051/api/category/${categoryId}`);
+      const response = await axios.delete(`https://api.vegiffyy.com/api/category/${categoryId}`);
       if (response.data.success) {
         alert('Category deleted successfully!');
         fetchCategories();
@@ -77,7 +77,7 @@ const CategoryList = () => {
 
     try {
       const response = await axios.delete(
-        `http://31.97.206.144:5051/api/category/${categoryId}/subcategory/${subcategoryId}`
+        `https://api.vegiffyy.com/api/category/${categoryId}/subcategory/${subcategoryId}`
       );
       if (response.data.success) {
         alert('Subcategory deleted successfully!');
@@ -132,7 +132,7 @@ const CategoryList = () => {
       }
 
       const response = await axios.put(
-        `http://31.97.206.144:5051/api/category/${categoryId}`,
+        `https://api.vegiffyy.com/api/category/${categoryId}`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' }
@@ -193,7 +193,7 @@ const CategoryList = () => {
       }
 
       const response = await axios.put(
-        `http://31.97.206.144:5051/api/category/${categoryId}/subcategory/${subcategoryId}`,
+        `https://api.vegiffyy.com/api/category/${categoryId}/subcategory/${subcategoryId}`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' }

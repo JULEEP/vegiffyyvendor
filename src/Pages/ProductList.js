@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { FaEdit, FaTrashAlt, FaEye, FaStar, FaRupeeSign, FaMapMarkerAlt, FaTag, FaSearch, FaTimes, FaSave, FaPlus, FaMinus } from "react-icons/fa";
+import React, { useEffect, useState, useCallback } from "react";
+import { FaEdit, FaTrashAlt, FaEye, FaStar, FaRupeeSign, FaMapMarkerAlt, FaTag, FaSearch, FaTimes, FaSave, FaToggleOn, FaToggleOff } from "react-icons/fa";
 import axios from "axios";
 
 const ProductList = () => {
@@ -14,6 +14,10 @@ const ProductList = () => {
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(null);
+  const [restaurantStatus, setRestaurantStatus] = useState("");
+  const [totalRatings, setTotalRatings] = useState(0);
+  const [totalReviews, setTotalReviews] = useState(0);
+  const [updatingStatus, setUpdatingStatus] = useState({});
 
   const vendorId = localStorage.getItem("vendorId");
 
@@ -23,11 +27,14 @@ const ProductList = () => {
       setLoading(true);
       setError("");
       try {
-        const res = await axios.get(`http://31.97.206.144:5051/api/restaurant-products/${vendorId}`);
+        const res = await axios.get(`https://api.vegiffyy.com/api/restaurant-products/${vendorId}`);
         if (res.data.success) {
           const productsData = res.data.recommendedProducts || [];
           setProducts(productsData);
           setFilteredProducts(productsData);
+          setRestaurantStatus(res.data.restaurantStatus || "");
+          setTotalRatings(res.data.totalRatings || 0);
+          setTotalReviews(res.data.totalReviews || 0);
         } else {
           setError(res.data.message || "Failed to fetch products");
         }
@@ -51,7 +58,7 @@ const ProductList = () => {
   const fetchCategories = async () => {
     try {
       setCategoriesLoading(true);
-      const response = await axios.get("http://31.97.206.144:5051/api/category");
+      const response = await axios.get("https://api.vegiffyy.com/api/category");
       if (response.data.success) {
         setCategories(response.data.data);
       }
@@ -83,10 +90,9 @@ const ProductList = () => {
   };
 
   const handleEdit = (product) => {
-    // Ensure type is always an array and has proper fallbacks
     const productCopy = JSON.parse(JSON.stringify(product));
     
-    // Safely handle the type field
+    // Ensure type is always an array
     if (!productCopy.type) {
       productCopy.type = [];
     } else if (!Array.isArray(productCopy.type)) {
@@ -97,9 +103,6 @@ const ProductList = () => {
     if (!productCopy.recommendedItem) {
       productCopy.recommendedItem = {};
     }
-    if (!productCopy.recommendedItem.addons) {
-      productCopy.recommendedItem.addons = {};
-    }
     
     setEditingProduct(productCopy);
   };
@@ -109,21 +112,22 @@ const ProductList = () => {
       return;
     }
 
-    // Use productId from the response, not _id
-    const productIdToDelete = product.productId || product._id;
+    const productId = product.productId;
+    const recommendedId = product.recommendedItem?._id;
 
-    if (!productIdToDelete) {
-      alert("Product ID not found");
+    if (!productId || !recommendedId) {
+      alert("Product ID or Recommended ID not found");
       return;
     }
 
-    setDeleteLoading(productIdToDelete);
+    setDeleteLoading(productId);
     try {
-      const response = await axios.delete(`http://31.97.206.144:5051/api/restaurant-product/${productIdToDelete}`);
+      const response = await axios.delete(
+        `https://api.vegiffyy.com/api/restaurant-product/${productId}/${recommendedId}`
+      );
       if (response.data.success) {
-        // Remove from local state
-        setProducts(products.filter(p => (p.productId || p._id) !== productIdToDelete));
-        setFilteredProducts(filteredProducts.filter(p => (p.productId || p._id) !== productIdToDelete));
+        setProducts(products.filter(p => p.productId !== productId));
+        setFilteredProducts(filteredProducts.filter(p => p.productId !== productId));
         alert("Product deleted successfully!");
       }
     } catch (error) {
@@ -134,7 +138,126 @@ const ProductList = () => {
     }
   };
 
-  const handleUpdate = async (e) => {
+  // Status toggle slider handler
+  const handleStatusToggle = async (product) => {
+    const productId = product.productId;
+    const recommendedId = product.recommendedItem?._id;
+    const currentStatus = product.recommendedItem?.status || "inactive";
+    const newStatus = currentStatus === "active" ? "inactive" : "active";
+
+    if (!productId || !recommendedId) {
+      alert("Product ID or Recommended ID not found");
+      return;
+    }
+
+    // Optimistically update UI
+    const updatedProducts = products.map(p => {
+      if (p.productId === productId) {
+        return {
+          ...p,
+          recommendedItem: {
+            ...p.recommendedItem,
+            status: newStatus
+          }
+        };
+      }
+      return p;
+    });
+
+    setProducts(updatedProducts);
+    setFilteredProducts(updatedProducts.filter(p => 
+      filteredProducts.some(fp => fp.productId === p.productId)
+    ));
+
+    setUpdatingStatus(productId);
+
+    try {
+      const formData = new FormData();
+      
+      // Create recommended object
+      const recommendedData = {
+        name: product.recommendedItem?.name,
+        price: product.recommendedItem?.price,
+        halfPlatePrice: product.recommendedItem?.halfPlatePrice,
+        fullPlatePrice: product.recommendedItem?.fullPlatePrice,
+        discount: product.recommendedItem?.discount,
+        content: product.recommendedItem?.content,
+        preparationTime: product.recommendedItem?.preparationTime,
+        status: newStatus,
+      };
+
+      // Add tags if they exist
+      if (product.recommendedItem?.tags) {
+        recommendedData.tags = Array.isArray(product.recommendedItem.tags) 
+          ? product.recommendedItem.tags 
+          : [product.recommendedItem.tags];
+      }
+
+      // Add category if it exists
+      if (product.recommendedItem?.category) {
+        recommendedData.category = typeof product.recommendedItem.category === 'object'
+          ? product.recommendedItem.category._id
+          : product.recommendedItem.category;
+      }
+
+      formData.append("recommended", JSON.stringify(recommendedData));
+
+      const response = await axios.put(
+        `https://api.vegiffyy.com/api/restaurant-product/${productId}/${recommendedId}`,
+        formData,
+        { 
+          headers: { 
+            "Content-Type": "multipart/form-data" 
+          } 
+        }
+      );
+
+      if (!response.data.success) {
+        // Revert if failed
+        const revertedProducts = products.map(p => {
+          if (p.productId === productId) {
+            return {
+              ...p,
+              recommendedItem: {
+                ...p.recommendedItem,
+                status: currentStatus
+              }
+            };
+          }
+          return p;
+        });
+        setProducts(revertedProducts);
+        setFilteredProducts(revertedProducts.filter(p => 
+          filteredProducts.some(fp => fp.productId === p.productId)
+        ));
+        alert("Failed to update status");
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+      // Revert on error
+      const revertedProducts = products.map(p => {
+        if (p.productId === productId) {
+          return {
+            ...p,
+            recommendedItem: {
+              ...p.recommendedItem,
+              status: currentStatus
+            }
+          };
+        }
+        return p;
+      });
+      setProducts(revertedProducts);
+      setFilteredProducts(revertedProducts.filter(p => 
+        filteredProducts.some(fp => fp.productId === p.productId)
+      ));
+      alert("Failed to update status: " + (error.response?.data?.message || error.message));
+    } finally {
+      setUpdatingStatus(prev => ({ ...prev, [productId]: false }));
+    }
+  };
+
+const handleUpdate = async (e) => {
   e.preventDefault();
   if (!editingProduct) return;
 
@@ -142,142 +265,124 @@ const ProductList = () => {
   try {
     const formData = new FormData();
     
-    // Use correct product ID
-    const productIdToUpdate = editingProduct.productId || editingProduct._id;
+    const productId = editingProduct.productId;
+    const recommendedId = editingProduct.recommendedItem?._id;
     
-    if (!productIdToUpdate) {
-      alert("Product ID not found");
-      return;
-    }
-
-    // Create update data with only modified fields
-    const updateData = {};
-
-    // Only include fields that are different from original
-    const originalProduct = products.find(p => (p.productId || p._id) === productIdToUpdate);
-    
-    if (!originalProduct) {
-      alert("Original product data not found");
-      return;
-    }
-
-    // Check and add only modified fields
-    if (JSON.stringify(editingProduct.type) !== JSON.stringify(originalProduct.type)) {
-      updateData.type = JSON.stringify(editingProduct.type);
-    }
-
-    if (editingProduct.status !== originalProduct.status) {
-      updateData.status = editingProduct.status;
-    }
-
-    if (editingProduct.viewCount !== originalProduct.viewCount) {
-      updateData.viewCount = editingProduct.viewCount.toString();
-    }
-
-    // Check recommended item changes - only send what's changed
-    const recommendedChanges = {};
-    const originalRecommended = originalProduct.recommendedItem || {};
-    const editedRecommended = editingProduct.recommendedItem || {};
-
-    // Only include fields that actually changed
-    if (editedRecommended.name !== originalRecommended.name) {
-      recommendedChanges.name = editedRecommended.name;
-    }
-
-    if (editedRecommended.price !== originalRecommended.price) {
-      recommendedChanges.price = editedRecommended.price.toString();
-    }
-
-    if (editedRecommended.content !== originalRecommended.content) {
-      recommendedChanges.content = editedRecommended.content;
-    }
-
-    if (editedRecommended.category !== originalRecommended.category) {
-      recommendedChanges.category = editedRecommended.category;
-    }
-
-    // Check addons changes - only if they exist and changed
-    const addonsChanges = {};
-    const originalAddons = originalRecommended.addons || {};
-    const editedAddons = editedRecommended.addons || {};
-
-    if (editedAddons.productName !== originalAddons.productName) {
-      addonsChanges.productName = editedAddons.productName;
-    }
-
-    // Check variation changes
-    const variationChanges = {};
-    const originalVariation = originalAddons.variation || {};
-    const editedVariation = editedAddons.variation || {};
-
-    if (editedVariation.name !== originalVariation.name) {
-      variationChanges.name = editedVariation.name;
-    }
-
-    if (JSON.stringify(editedVariation.type) !== JSON.stringify(originalVariation.type)) {
-      variationChanges.type = editedVariation.type || [];
-    }
-
-    // Check plates changes
-    const platesChanges = {};
-    const originalPlates = originalAddons.plates || {};
-    const editedPlates = editedAddons.plates || {};
-
-    if (editedPlates.name !== originalPlates.name) {
-      platesChanges.name = editedPlates.name;
-    }
-
-    // Only include addons if there are changes
-    if (Object.keys(addonsChanges).length > 0 || 
-        Object.keys(variationChanges).length > 0 || 
-        Object.keys(platesChanges).length > 0) {
-      
-      recommendedChanges.addons = {
-        ...addonsChanges,
-        ...(Object.keys(variationChanges).length > 0 && { variation: variationChanges }),
-        ...(Object.keys(platesChanges).length > 0 && { plates: platesChanges })
-      };
-    }
-
-    // Only include recommended if there are changes
-    if (Object.keys(recommendedChanges).length > 0) {
-      updateData.recommended = JSON.stringify([recommendedChanges]);
-    }
-
-    console.log("🔄 Sending update data (only modified fields):", updateData);
-
-    // If no fields were modified, show message and return
-    if (Object.keys(updateData).length === 0 && !editingProduct.recommendedItem.newImage) {
-      alert("No changes detected");
+    if (!productId || !recommendedId) {
+      alert("Product ID or Recommended ID not found");
       setUpdateLoading(false);
       return;
     }
 
-    // Append all data to formData
-    Object.keys(updateData).forEach(key => {
-      formData.append(key, updateData[key]);
-    });
-
-    // Append image if new one is selected
-    if (editingProduct.recommendedItem.newImage) {
-      formData.append("recommendedImages", editingProduct.recommendedItem.newImage);
+    // Find original product for comparison
+    const originalProduct = products.find(p => p.productId === productId);
+    if (!originalProduct) {
+      alert("Product not found");
+      setUpdateLoading(false);
+      return;
     }
 
+    const originalRecommended = originalProduct.recommendedItem || {};
+
+    // Create recommended object EXACTLY like your working code
+    const recommendedData = {
+      name: editingProduct.recommendedItem?.name || originalRecommended.name,
+      price: editingProduct.recommendedItem?.price || originalRecommended.price,
+      halfPlatePrice: editingProduct.recommendedItem?.halfPlatePrice || originalRecommended.halfPlatePrice,
+      fullPlatePrice: editingProduct.recommendedItem?.fullPlatePrice || originalRecommended.fullPlatePrice,
+      discount: editingProduct.recommendedItem?.discount || originalRecommended.discount,
+      content: editingProduct.recommendedItem?.content || originalRecommended.content,
+      preparationTime: editingProduct.recommendedItem?.preparationTime || originalRecommended.preparationTime,
+      status: editingProduct.recommendedItem?.status || originalRecommended.status,
+    };
+
+    // Add tags if they exist
+    if (editingProduct.recommendedItem?.tags) {
+      recommendedData.tags = Array.isArray(editingProduct.recommendedItem.tags) 
+        ? editingProduct.recommendedItem.tags 
+        : [editingProduct.recommendedItem.tags];
+    }
+
+    // Add category if it exists
+    if (editingProduct.recommendedItem?.category) {
+      recommendedData.category = typeof editingProduct.recommendedItem.category === 'object'
+        ? editingProduct.recommendedItem.category._id
+        : editingProduct.recommendedItem.category;
+    }
+
+    console.log("📤 Recommended Data to send:", recommendedData);
+    console.log("📤 Status being sent:", recommendedData.status);
+
+    // Append recommended data as JSON string (IMPORTANT: NOT in array)
+    formData.append("recommended", JSON.stringify(recommendedData));
+    
+    // Append type if changed
+    if (JSON.stringify(editingProduct.type) !== JSON.stringify(originalProduct.type)) {
+      formData.append('type', JSON.stringify(editingProduct.type));
+    }
+
+    // Append image file
+    if (editingProduct.recommendedItem?.newImage) {
+      formData.append("recommendedImage", editingProduct.recommendedItem.newImage);
+    }
+
+    // Debug: Show what's being sent
+    for (let pair of formData.entries()) {
+      console.log(`📤 FormData: ${pair[0]} = ${pair[1]}`);
+    }
+
+    // Send request
     const response = await axios.put(
-      `http://31.97.206.144:5051/api/restaurant-product/${productIdToUpdate}`,
+      `https://api.vegiffyy.com/api/restaurant-product/${productId}/${recommendedId}`,
       formData,
-      { headers: { "Content-Type": "multipart/form-data" } }
+      { 
+        headers: { 
+          "Content-Type": "multipart/form-data" 
+        } 
+      }
     );
+
+    console.log("✅ Response:", response.data);
 
     if (response.data.success) {
       // Update local state
-      setProducts(products.map(p => (p.productId || p._id) === productIdToUpdate ? { ...response.data.data, productId: productIdToUpdate } : p));
-      setFilteredProducts(filteredProducts.map(p => (p.productId || p._id) === productIdToUpdate ? { ...response.data.data, productId: productIdToUpdate } : p));
+      const updatedProduct = response.data.data;
+      
+      // Find the updated recommended item
+      const updatedRecommendedItem = updatedProduct.recommended?.find(
+        item => item._id === recommendedId
+      );
+
+      if (updatedRecommendedItem) {
+        // Create updated product object
+        const updatedProductData = {
+          ...originalProduct,
+          type: updatedProduct.type || originalProduct.type,
+          recommendedItem: {
+            ...originalRecommended,
+            ...updatedRecommendedItem,
+            // Ensure category object is preserved
+            category: typeof updatedRecommendedItem.category === 'string' && typeof originalRecommended.category === 'object'
+              ? originalRecommended.category
+              : updatedRecommendedItem.category
+          }
+        };
+
+        // Update states
+        setProducts(products.map(p => 
+          p.productId === productId ? updatedProductData : p
+        ));
+        setFilteredProducts(filteredProducts.map(p => 
+          p.productId === productId ? updatedProductData : p
+        ));
+      }
+
       setEditingProduct(null);
       alert("Product updated successfully!");
     }
   } catch (error) {
-    console.error("Error updating product:", error);
+    console.error("❌ Error updating product:", error);
+    console.error("❌ Error response:", error.response?.data);
     alert("Failed to update product: " + (error.response?.data?.message || error.message));
   } finally {
     setUpdateLoading(false);
@@ -300,74 +405,6 @@ const ProductList = () => {
     }));
   };
 
-  const handleAddonsChange = (section, field, value) => {
-    setEditingProduct(prev => ({
-      ...prev,
-      recommendedItem: {
-        ...prev.recommendedItem,
-        addons: {
-          ...prev.recommendedItem.addons,
-          [section]: {
-            ...prev.recommendedItem.addons?.[section],
-            [field]: value
-          }
-        }
-      }
-    }));
-  };
-
-  const handleVariationTypeChange = (index, value) => {
-    setEditingProduct(prev => {
-      const newTypes = [...(prev.recommendedItem.addons?.variation?.type || [])];
-      newTypes[index] = value;
-      return {
-        ...prev,
-        recommendedItem: {
-          ...prev.recommendedItem,
-          addons: {
-            ...prev.recommendedItem.addons,
-            variation: {
-              ...prev.recommendedItem.addons?.variation,
-              type: newTypes
-            }
-          }
-        }
-      };
-    });
-  };
-
-  const addVariationType = () => {
-    setEditingProduct(prev => ({
-      ...prev,
-      recommendedItem: {
-        ...prev.recommendedItem,
-        addons: {
-          ...prev.recommendedItem.addons,
-          variation: {
-            ...prev.recommendedItem.addons?.variation,
-            type: [...(prev.recommendedItem.addons?.variation?.type || []), ""]
-          }
-        }
-      }
-    }));
-  };
-
-  const removeVariationType = (index) => {
-    setEditingProduct(prev => ({
-      ...prev,
-      recommendedItem: {
-        ...prev.recommendedItem,
-        addons: {
-          ...prev.recommendedItem.addons,
-          variation: {
-            ...prev.recommendedItem.addons?.variation,
-            type: (prev.recommendedItem.addons?.variation?.type || []).filter((_, i) => i !== index)
-          }
-        }
-      }
-    }));
-  };
-
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -386,23 +423,59 @@ const ProductList = () => {
     setEditingProduct(null);
   };
 
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      active: { color: "bg-green-100 text-green-800", text: "Active" },
-      inactive: { color: "bg-red-100 text-red-800", text: "Inactive" },
-      pending: { color: "bg-yellow-100 text-yellow-800", text: "Pending" }
-    };
+  const clearSearch = () => {
+    setSearchTerm("");
+  };
 
-    const config = statusConfig[status] || statusConfig.inactive;
+  const getCategoryName = (category) => {
+    if (!category) return "";
+    if (typeof category === 'string') {
+      const foundCategory = categories.find(c => c._id === category);
+      return foundCategory?.categoryName || category;
+    }
+    return category.categoryName || "";
+  };
+
+  // Status Slider Component
+  const StatusSlider = ({ product }) => {
+    const isActive = product.recommendedItem?.status === "active";
+    const isUpdating = updatingStatus[product.productId];
+
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
-        {config.text}
-      </span>
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex items-center justify-between w-full">
+          <span className={`text-xs font-medium ${!isActive ? 'text-red-600' : 'text-gray-400'}`}>
+            Inactive
+          </span>
+          <div className="relative">
+            <button
+              onClick={() => !isUpdating && handleStatusToggle(product)}
+              disabled={isUpdating}
+              className={`w-12 h-6 flex items-center rounded-full p-1 transition-all duration-300 ${isActive ? 'bg-green-500' : 'bg-gray-300'} ${isUpdating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <div
+                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${isActive ? 'translate-x-6' : 'translate-x-0'}`}
+              />
+            </button>
+            {isUpdating && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              </div>
+            )}
+          </div>
+          <span className={`text-xs font-medium ${isActive ? 'text-green-600' : 'text-gray-400'}`}>
+            Active
+          </span>
+        </div>
+        <span className={`text-xs px-2 py-0.5 rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+          {isActive ? "Active" : "Inactive"}
+        </span>
+      </div>
     );
   };
 
+  // Get Type Badge
   const getTypeBadge = (type) => {
-    // Ensure type is always an array
     const typeArray = Array.isArray(type) ? type : (type ? [type] : []);
     
     const typeConfig = {
@@ -420,10 +493,6 @@ const ProductList = () => {
         {typeArray.join(", ")}
       </span>
     );
-  };
-
-  const clearSearch = () => {
-    setSearchTerm("");
   };
 
   if (loading) {
@@ -459,7 +528,7 @@ const ProductList = () => {
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-200">
-      {/* Header */}
+      {/* Header with Restaurant Info */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
@@ -469,6 +538,26 @@ const ProductList = () => {
           <p className="text-gray-600 mt-1">
             Manage your menu items and recommendations
           </p>
+          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+            <span className="flex items-center gap-1">
+              <span className="font-medium">Restaurant Status:</span>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                restaurantStatus === 'active' 
+                  ? 'bg-green-100 text-green-800' 
+                  : 'bg-red-100 text-red-800'
+              }`}>
+                {restaurantStatus || 'Unknown'}
+              </span>
+            </span>
+            <span className="flex items-center gap-1">
+              <FaStar className="text-yellow-400" />
+              <span>{totalRatings} Ratings</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <FaEye className="text-blue-400" />
+              <span>{totalReviews} Reviews</span>
+            </span>
+          </div>
         </div>
         <div className="mt-4 sm:mt-0 flex items-center gap-2 text-sm text-gray-500">
           <FaTag className="text-green-500" />
@@ -557,7 +646,7 @@ const ProductList = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProducts.map((product) => (
-                <tr key={product._id} className="hover:bg-gray-50 transition-colors">
+                <tr key={product.recommendedItem?._id || product._id} className="hover:bg-gray-50 transition-colors">
                   {/* Product Info */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -577,6 +666,9 @@ const ProductList = () => {
                           <FaMapMarkerAlt className="text-gray-400 text-xs" />
                           {product.locationName || "Unknown Location"}
                         </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          ID: {product.recommendedItem?._id?.slice(-6)}
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -592,6 +684,12 @@ const ProductList = () => {
                       <FaRupeeSign className="text-gray-500 text-xs" />
                       {product.recommendedItem?.price || "0"}
                     </div>
+                    {product.recommendedItem?.discount > 0 && (
+                      <div className="text-xs text-red-600 line-through">
+                        <FaRupeeSign className="inline" />
+                        {Math.round(product.recommendedItem?.price / (1 - product.recommendedItem?.discount / 100))}
+                      </div>
+                    )}
                   </td>
 
                   {/* Rating */}
@@ -602,14 +700,14 @@ const ProductList = () => {
                         {product.recommendedItem?.rating || "0"}
                       </span>
                       <span className="text-xs text-gray-500">
-                        ({product.recommendedItem?.viewCount || "0"} views)
+                        ({product.recommendedItem?.reviews?.length || 0} reviews)
                       </span>
                     </div>
                   </td>
 
                   {/* Status */}
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(product.status)}
+                    <StatusSlider product={product} />
                   </td>
 
                   {/* Actions */}
@@ -631,11 +729,11 @@ const ProductList = () => {
                       </button>
                       <button
                         onClick={() => handleDelete(product)}
-                        disabled={deleteLoading === (product.productId || product._id)}
+                        disabled={deleteLoading === product.productId}
                         className="text-red-600 hover:text-red-900 transition-colors p-2 rounded-lg hover:bg-red-50 disabled:opacity-50"
                         title="Delete Product"
                       >
-                        {deleteLoading === (product.productId || product._id) ? (
+                        {deleteLoading === product.productId ? (
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
                         ) : (
                           <FaTrashAlt />
@@ -675,7 +773,9 @@ const ProductList = () => {
                       <span>{selectedProduct.locationName || "Unknown Location"}</span>
                     </div>
                     {getTypeBadge(selectedProduct.type)}
-                    {getStatusBadge(selectedProduct.status)}
+                    <div className="flex items-center gap-2">
+                      <StatusSlider product={selectedProduct} />
+                    </div>
                   </div>
                 </div>
                 <button
@@ -703,7 +803,11 @@ const ProductList = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Product ID:</span>
-                      <span className="font-semibold text-sm font-mono">{selectedProduct.productId || selectedProduct._id}</span>
+                      <span className="font-semibold text-sm font-mono">{selectedProduct.productId}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Recommended ID:</span>
+                      <span className="font-semibold text-sm font-mono">{selectedProduct.recommendedItem?._id}</span>
                     </div>
                   </div>
                 </div>
@@ -711,13 +815,17 @@ const ProductList = () => {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Product Status</h3>
                   <div className="space-y-3">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-600">Status:</span>
-                      {getStatusBadge(selectedProduct.status)}
+                      <StatusSlider product={selectedProduct} />
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Types:</span>
                       {getTypeBadge(selectedProduct.type)}
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Preparation Time:</span>
+                      <span className="font-semibold">{selectedProduct.recommendedItem?.preparationTime || "0"} mins</span>
                     </div>
                   </div>
                 </div>
@@ -746,10 +854,14 @@ const ProductList = () => {
                     </span>
                   </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Discount:</span>
-                  <span className="font-semibold">{selectedProduct.recommendedItem?.discount || "0"}%</span>
-                </div>
+                {selectedProduct.recommendedItem?.discount > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Discount:</span>
+                    <span className="font-semibold text-red-600">
+                      {selectedProduct.recommendedItem?.discount || "0"}%
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Category Information */}
@@ -760,43 +872,40 @@ const ProductList = () => {
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Category Name:</span>
-                        <span className="font-semibold">{selectedProduct.recommendedItem.category.categoryName}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Category Status:</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          selectedProduct.recommendedItem.category.status === 'active' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {selectedProduct.recommendedItem.category.status}
+                        <span className="font-semibold">
+                          {getCategoryName(selectedProduct.recommendedItem.category)}
                         </span>
                       </div>
+                      {selectedProduct.recommendedItem.category.status && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Category Status:</span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            selectedProduct.recommendedItem.category.status === 'active' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {selectedProduct.recommendedItem.category.status}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Subcategories:</span>
-                        <div className="text-right">
-                          {selectedProduct.recommendedItem.category.subcategories?.map((subcat, index) => (
-                            <div key={index} className="text-sm font-medium">
-                              {subcat.subcategoryName}
-                            </div>
-                          )) || "No subcategories"}
+                    {selectedProduct.recommendedItem.category.subcategories?.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Subcategories:</span>
+                          <div className="text-right">
+                            {selectedProduct.recommendedItem.category.subcategories.map((subcat, index) => (
+                              <div key={index} className="text-sm font-medium">
+                                {subcat.subcategoryName}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               )}
-
-              {/* Preparation Time */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Preparation Time</h3>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Time Required:</span>
-                  <span className="font-semibold">{selectedProduct.recommendedItem?.preparationTime || "0"} minutes</span>
-                </div>
-              </div>
 
               {/* Reviews & Ratings */}
               <div className="space-y-4">
@@ -808,26 +917,30 @@ const ProductList = () => {
                       {selectedProduct.recommendedItem?.rating || "No rating"}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">View Count:</span>
-                    <span className="font-semibold">{selectedProduct.recommendedItem?.viewCount || "0"} views</span>
-                  </div>
                 </div>
                 <div>
-                  <span className="text-gray-600 block mb-2">Reviews:</span>
+                  <span className="text-gray-600 block mb-2">Reviews ({selectedProduct.recommendedItem?.reviews?.length || 0}):</span>
                   <div className="space-y-2">
                     {selectedProduct.recommendedItem?.reviews?.length > 0 ? (
                       selectedProduct.recommendedItem.reviews.map((review, index) => (
                         <div key={index} className="bg-gray-50 p-3 rounded-lg">
                           <div className="flex justify-between items-start">
-                            <span className="font-medium">{review.userName || "Anonymous"}</span>
+                            <span className="font-medium">
+                              {review.firstName || review.userName || "Anonymous"}
+                              {review.lastName && ` ${review.lastName}`}
+                            </span>
                             <div className="flex items-center gap-1">
                               <FaStar className="text-yellow-400 text-sm" />
-                              <span className="text-sm">{review.rating}</span>
+                              <span className="text-sm">{review.stars || review.rating}</span>
                             </div>
                           </div>
                           {review.comment && (
                             <p className="text-gray-600 text-sm mt-1">{review.comment}</p>
+                          )}
+                          {review.createdAt && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              {new Date(review.createdAt).toLocaleDateString()}
+                            </p>
                           )}
                         </div>
                       ))
@@ -836,14 +949,6 @@ const ProductList = () => {
                     )}
                   </div>
                 </div>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Description</h3>
-                <p className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg">
-                  {selectedProduct.recommendedItem?.content || "No description available."}
-                </p>
               </div>
 
               {/* Tags */}
@@ -859,6 +964,14 @@ const ProductList = () => {
                   </div>
                 </div>
               )}
+
+              {/* Description */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Description</h3>
+                <p className="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg">
+                  {selectedProduct.recommendedItem?.content || "No description available."}
+                </p>
+              </div>
 
               {/* Product Image */}
               <div className="space-y-4">
@@ -908,6 +1021,10 @@ const ProductList = () => {
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">Edit Product</h2>
                     <p className="text-gray-600 mt-1">Update product details</p>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Product ID: {editingProduct.productId} | 
+                      Recommended ID: {editingProduct.recommendedItem?._id}
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -946,11 +1063,53 @@ const ProductList = () => {
                     </div>
 
                     <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Half Plate Price (₹)</label>
+                      <input
+                        type="number"
+                        value={editingProduct.recommendedItem?.halfPlatePrice || ""}
+                        onChange={(e) => handleRecommendedItemChange("halfPlatePrice", e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Plate Price (₹)</label>
+                      <input
+                        type="number"
+                        value={editingProduct.recommendedItem?.fullPlatePrice || ""}
+                        onChange={(e) => handleRecommendedItemChange("fullPlatePrice", e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Discount (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={editingProduct.recommendedItem?.discount || ""}
+                        onChange={(e) => handleRecommendedItemChange("discount", e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                       <textarea
                         value={editingProduct.recommendedItem?.content || ""}
                         onChange={(e) => handleRecommendedItemChange("content", e.target.value)}
                         rows="3"
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Preparation Time (minutes)</label>
+                      <input
+                        type="number"
+                        value={editingProduct.recommendedItem?.preparationTime || ""}
+                        onChange={(e) => handleRecommendedItemChange("preparationTime", e.target.value)}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
@@ -963,7 +1122,9 @@ const ProductList = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
                       <select
-                        value={editingProduct.recommendedItem?.category || ""}
+                        value={typeof editingProduct.recommendedItem?.category === 'object' 
+                          ? editingProduct.recommendedItem.category._id 
+                          : editingProduct.recommendedItem?.category || ""}
                         onChange={(e) => handleRecommendedItemChange("category", e.target.value)}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
@@ -977,16 +1138,25 @@ const ProductList = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                      <select
-                        value={editingProduct.status || "active"}
-                        onChange={(e) => handleEditChange("status", e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="active">Select</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="active">Active</option>
-                      </select>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Product Status *</label>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-sm ${editingProduct.recommendedItem?.status === 'active' ? 'text-green-600' : 'text-gray-400'}`}>
+                          Active
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRecommendedItemChange("status", editingProduct.recommendedItem?.status === "active" ? "inactive" : "active")}
+                          className={`w-12 h-6 flex items-center rounded-full p-1 transition-all duration-300 ${editingProduct.recommendedItem?.status === 'active' ? 'bg-green-500' : 'bg-gray-300'} cursor-pointer`}
+                        >
+                          <div
+                            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${editingProduct.recommendedItem?.status === 'active' ? 'translate-x-6' : 'translate-x-0'}`}
+                          />
+                        </button>
+                        <span className={`text-sm ${editingProduct.recommendedItem?.status === 'inactive' ? 'text-red-600' : 'text-gray-400'}`}>
+                          Inactive
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Slide to change status</p>
                     </div>
 
                     <div>
@@ -999,67 +1169,20 @@ const ProductList = () => {
                         placeholder="e.g. Veg, Non-Veg"
                       />
                     </div>
-                  </div>
-                </div>
-
-                {/* Addons & Variations */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Addons & Variations</h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Variation Name</label>
-                      <input
-                        type="text"
-                        value={editingProduct.recommendedItem?.addons?.variation?.name || ""}
-                        onChange={(e) => handleAddonsChange("variation", "name", e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="e.g. Spice Level"
-                      />
-                    </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Plate Name</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
                       <input
                         type="text"
-                        value={editingProduct.recommendedItem?.addons?.plates?.name || ""}
-                        onChange={(e) => handleAddonsChange("plates", "name", e.target.value)}
+                        value={Array.isArray(editingProduct.recommendedItem?.tags) 
+                          ? editingProduct.recommendedItem.tags.join(", ") 
+                          : editingProduct.recommendedItem?.tags || ""}
+                        onChange={(e) => handleRecommendedItemChange("tags", e.target.value.split(",").map(t => t.trim()))}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="e.g. Main Course"
+                        placeholder="e.g. Spicy, Healthy, Popular"
                       />
+                      <p className="text-xs text-gray-500 mt-1">Separate tags with commas</p>
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Variation Types</label>
-                    <div className="space-y-2">
-                      {(editingProduct.recommendedItem?.addons?.variation?.type || []).map((type, index) => (
-                        <div key={index} className="flex gap-2 items-center">
-                          <input
-                            type="text"
-                            value={type || ""}
-                            onChange={(e) => handleVariationTypeChange(index, e.target.value)}
-                            className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder={`Variation type ${index + 1}`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeVariationType(index)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <FaMinus />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={addVariationType}
-                      className="mt-2 flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    >
-                      <FaPlus />
-                      Add Variation Type
-                    </button>
                   </div>
                 </div>
 
