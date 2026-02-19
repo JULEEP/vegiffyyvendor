@@ -123,7 +123,7 @@ const ProductList = () => {
     setDeleteLoading(productId);
     try {
       const response = await axios.delete(
-        `https://api.vegiffyy.com/api/restaurant-product/${productId}/${recommendedId}`
+        `https://api.vegiffyy.com/api/restaurant-products/${productId}/${recommendedId}`
       );
       if (response.data.success) {
         setProducts(products.filter(p => p.productId !== productId));

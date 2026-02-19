@@ -961,7 +961,7 @@ const AccountManagement = () => {
                 </li>
                 <li className="flex items-start">
                   <span className="text-green-500 mr-2">✓</span>
-                  Primary account receives all automatic payouts from Vegiffyy
+                  Primary account receives all automatic payouts from Vegiffy
                 </li>
                 <li className="flex items-start">
                   <span className="text-green-500 mr-2">✓</span>

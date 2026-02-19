@@ -6,6 +6,8 @@ import {
   FaSearch,
   FaCalendarAlt,
   FaCheckCircle,
+  FaEyeSlash,
+  FaUser
 } from "react-icons/fa";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -24,6 +26,24 @@ const CompletedBookingList = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   const vendorId = localStorage.getItem("vendorId");
+
+  // 🔒 Function to mask email
+  const maskEmail = (email) => {
+    if (!email || email === "N/A") return "N/A";
+    const [username, domain] = email.split("@");
+    if (!domain) return "***@***.***";
+    const maskedUsername = username.slice(0, 2) + "****";
+    const domainParts = domain.split(".");
+    const maskedDomain = domainParts[0].slice(0, 1) + "***." + domainParts.slice(1).join(".");
+    return `${maskedUsername}@${maskedDomain}`;
+  };
+
+  // 🔒 Function to mask phone number
+  const maskPhone = (phone) => {
+    if (!phone || phone === "N/A") return "N/A";
+    if (phone.length < 10) return phone;
+    return phone.slice(0, 2) + "******" + phone.slice(-2);
+  };
 
   // Fetch delivered bookings
   useEffect(() => {
@@ -50,8 +70,12 @@ const CompletedBookingList = () => {
               return {
                 bookingId: order._id,
                 userName: `${order.userId?.firstName || "N/A"} ${order.userId?.lastName || ""}`,
-                userEmail: order.userId?.email || "N/A",
-                userPhone: order.userId?.phoneNumber || "N/A",
+                // 🔒 Store original for internal use
+                originalUserEmail: order.userId?.email || "N/A",
+                originalUserPhone: order.userId?.phoneNumber || "N/A",
+                // 🔒 Masked versions for display
+                userEmail: maskEmail(order.userId?.email),
+                userPhone: maskPhone(order.userId?.phoneNumber),
                 bookingDate: new Date(order.createdAt).toISOString().split("T")[0],
                 bookingDateTime: new Date(order.createdAt).toLocaleString(),
                 productName: productsDetails,
@@ -64,7 +88,7 @@ const CompletedBookingList = () => {
                 paymentMethod: order.paymentMethod || "N/A",
                 paymentStatus: order.paymentStatus || "N/A",
                 deliveryBoy: order.deliveryBoyId ? 
-                  `${order.deliveryBoyId.fullName} (${order.deliveryBoyId.mobileNumber})` : "Not Assigned",
+                  `${order.deliveryBoyId.fullName} (${maskPhone(order.deliveryBoyId.mobileNumber)})` : "Not Assigned",
                 deliveryAddress: order.deliveryAddress ? 
                   `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state} - ${order.deliveryAddress.postalCode}` : "N/A",
                 raw: order,
@@ -93,14 +117,14 @@ const CompletedBookingList = () => {
       filtered = filtered.filter(booking => booking.bookingDate === dateFilter);
     }
 
-    // Apply search filter
+    // Apply search filter - search using original data for accuracy
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(booking =>
         booking.bookingId.toLowerCase().includes(term) ||
         booking.userName.toLowerCase().includes(term) ||
-        booking.userEmail.toLowerCase().includes(term) ||
-        booking.userPhone.includes(term) ||
+        booking.originalUserEmail.toLowerCase().includes(term) ||
+        booking.originalUserPhone.includes(term) ||
         booking.productName.toLowerCase().includes(term) ||
         booking.paymentMethod.toLowerCase().includes(term)
       );
@@ -110,7 +134,26 @@ const CompletedBookingList = () => {
   }, [bookings, dateFilter, searchTerm]);
 
   const downloadExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(filteredBookings);
+    // For Excel export, include original data for business purposes
+    const excelData = filteredBookings.map(booking => ({
+      'Order ID': booking.bookingId,
+      'Customer Name': booking.userName,
+      'Email': booking.originalUserEmail,
+      'Phone': booking.originalUserPhone,
+      'Order Date': booking.bookingDateTime,
+      'Products': booking.productName,
+      'Quantity': booking.quantity,
+      'Subtotal': booking.price,
+      'Total Amount': booking.totalAmount,
+      'Status': booking.status,
+      'Payment Method': booking.paymentMethod,
+      'Payment Status': booking.paymentStatus,
+      'Delivery Charge': booking.deliveryCharge,
+      'Coupon Discount': booking.couponDiscount,
+      'Delivery Address': booking.deliveryAddress
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "DeliveredOrders");
     XLSX.writeFile(wb, "DeliveredOrders.xlsx");
@@ -135,16 +178,16 @@ const CompletedBookingList = () => {
     doc.line(startX, y, 75, y);
     y += 6;
 
-    // Booking info
+    // Booking info - use original data for invoice
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.text(`Order ID: ${booking.bookingId}`, startX, y);
     y += 6;
     doc.text(`Customer: ${booking.userName}`, startX, y);
     y += 6;
-    doc.text(`Email: ${booking.userEmail}`, startX, y);
+    doc.text(`Email: ${booking.originalUserEmail}`, startX, y);
     y += 6;
-    doc.text(`Phone: ${booking.userPhone}`, startX, y);
+    doc.text(`Phone: ${booking.originalUserPhone}`, startX, y);
     y += 6;
     doc.text(`Date: ${booking.bookingDateTime}`, startX, y);
     y += 8;
@@ -306,7 +349,7 @@ const CompletedBookingList = () => {
                 <input
                   type="text"
                   id="search"
-                  placeholder="Search by order ID, name, email, phone, products..."
+                  placeholder="Search by order ID, name, products..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
@@ -414,9 +457,18 @@ const CompletedBookingList = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 space-y-1">
-                          <div className="font-medium">{booking.userName}</div>
-                          <div className="text-gray-600 text-xs">{booking.userEmail}</div>
-                          <div className="text-gray-500 text-xs">{booking.userPhone}</div>
+                          <div className="font-medium flex items-center">
+                            <FaUser className="mr-2 text-gray-400" size={12} />
+                            {booking.userName}
+                          </div>
+                          <div className="text-gray-600 text-xs flex items-center">
+                            <FaEyeSlash className="mr-1 text-gray-400" size={10} />
+                            {booking.userEmail}
+                          </div>
+                          <div className="text-gray-500 text-xs flex items-center">
+                            <FaEyeSlash className="mr-1 text-gray-400" size={10} />
+                            {booking.userPhone}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -493,11 +545,24 @@ const CompletedBookingList = () => {
               {/* Customer Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-800 mb-3">Customer Information</h4>
+                  <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+                    <FaUser className="mr-2 text-blue-600" />
+                    Customer Information
+                  </h4>
                   <div className="space-y-2 text-sm">
                     <div><strong>Name:</strong> {viewBooking.userName}</div>
-                    <div><strong>Email:</strong> {viewBooking.userEmail}</div>
-                    <div><strong>Phone:</strong> {viewBooking.userPhone}</div>
+                    <div><strong>Email:</strong> 
+                      <span className="ml-2 flex items-center">
+                        <FaEyeSlash className="mr-1 text-gray-400" size={12} />
+                        {viewBooking.userEmail}
+                      </span>
+                    </div>
+                    <div><strong>Phone:</strong> 
+                      <span className="ml-2 flex items-center">
+                        <FaEyeSlash className="mr-1 text-gray-400" size={12} />
+                        {viewBooking.userPhone}
+                      </span>
+                    </div>
                     <div><strong>Order Date:</strong> {viewBooking.bookingDateTime}</div>
                   </div>
                 </div>

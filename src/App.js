@@ -24,6 +24,7 @@ import AboutUs from "./Pages/AboutUs.js";
 import CommissionReport from "./Pages/CommissionReport.js";
 import AccountManagement from "./Pages/AccountManagement.js";
 import VendorNotifications from "./Pages/VendorNotifications.js";
+import VendorUserOrders from "./Pages/VendorUserOrders.js";
 
 
 
@@ -60,6 +61,7 @@ function App() {
             <Route path="/comission" element={<CommissionReport />} />
             <Route path="/account" element={<AccountManagement />} />
             <Route path="/notification" element={<VendorNotifications />} />
+            <Route path="/myuserorders" element={<VendorUserOrders />} />
 
 
 

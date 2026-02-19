@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FaEnvelope, FaPhone, FaCopy, FaCheck, FaWhatsapp } from 'react-icons/fa';
 
 const VendorSupport = () => {
-  const [email, setEmail] = useState('vendor@vegiffyy.com');
+  const [email, setEmail] = useState('vendor@vegiffy.in');
   const [phone, setPhone] = useState('9391950503');
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
@@ -22,12 +22,12 @@ const VendorSupport = () => {
 
   // Open email client
   const sendEmail = () => {
-    window.location.href = `mailto:${email}?subject=Vendor Support&body=Hello Vegiffyy Vendor Support Team,`;
+    window.location.href = `mailto:${email}?subject=Vendor Support&body=Hello Vegiffy Vendor Support Team,`;
   };
 
   // Open WhatsApp
   const openWhatsApp = () => {
-    const message = "Hello Vegiffyy Vendor Support Team,";
+    const message = "Hello Vegiffy Vendor Support Team,";
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -161,7 +161,7 @@ const VendorSupport = () => {
                 ⏰ Response time: Within 2 hours on working days
               </p>
               <p className="text-gray-400 text-xs mt-1">
-                © Vegiffyy Vendor Program • Partner Success Team
+                © Vegiffy Vendor Program • Partner Success Team
               </p>
             </div>
           </div>

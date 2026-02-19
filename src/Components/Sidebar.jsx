@@ -14,7 +14,7 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
   const [hasActivePlan, setHasActivePlan] = useState(null);
   const [planLoading, setPlanLoading] = useState(true);
   const [planDetails, setPlanDetails] = useState(null);
-  const [notificationCount, setNotificationCount] = useState(0); // ✅ Notification count state
+  const [notificationCount, setNotificationCount] = useState(0);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -59,7 +59,7 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
   // ✅ Check vendor plan
   useEffect(() => {
     checkVendorPlan();
-    fetchNotificationCount(); // ✅ Fetch notification count
+    fetchNotificationCount();
   }, [location.pathname]);
 
   // ✅ Fetch notification count
@@ -91,14 +91,11 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
         return;
       }
 
-      // ✅ Paths that don't need plan check
+      // ✅ Paths that don't need plan check (only login/register/payment pages)
       const exemptPaths = [
-        "/dashboard",
         "/vendorpay", 
-        "/myplans",
         "/vendor-login",
         "/vendor-register",
-        "/notification" // ✅ Notification page exempt
       ];
 
       // Check if current path is exempt
@@ -129,13 +126,16 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
           setShowPlanPopup(false);
         } else {
           setHasActivePlan(false);
-          // Show popup only if not on payment page
+          // Show popup for ALL pages including dashboard if no active plan
+          // But don't show on payment page
           if (location.pathname !== "/vendorpay") {
             setShowPlanPopup(true);
           }
         }
       } else {
         setHasActivePlan(false);
+        // Show popup for ALL pages including dashboard if no active plan
+        // But don't show on payment page
         if (location.pathname !== "/vendorpay") {
           setShowPlanPopup(true);
         }
@@ -143,6 +143,10 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
     } catch (error) {
       console.error("Error checking vendor plan:", error);
       setHasActivePlan(false);
+      // Show popup on error for ALL pages including dashboard
+      if (location.pathname !== "/vendorpay") {
+        setShowPlanPopup(true);
+      }
     } finally {
       setPlanLoading(false);
     }
@@ -159,46 +163,24 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
       return;
     }
 
-    // ✅ Paths that don't need plan
-    const exemptPaths = [
-      "/dashboard",
+    // ✅ Only payment page is free (no plan required)
+    const freePaths = [
       "/vendorpay", 
-      "/myplans",
       "/vendor-login",
       "/vendor-register",
-      "/notification" // ✅ Notification page exempt
     ];
 
-    // Check if path is exempt
-    const isExemptPath = exemptPaths.some(path => itemPath.startsWith(path));
+    // Check if path is free (no plan required)
+    const isFreePath = freePaths.some(path => itemPath.startsWith(path));
     
-    if (isExemptPath) {
+    if (isFreePath) {
       navigate(itemPath);
       return;
     }
 
-    // ✅ Protected paths that require active plan
-    const protectedPaths = [
-      "/categoryform",
-      "/categorylist",
-      "/add-product",
-      "/productlist",
-      "/allorders",
-      "/pendingorders",
-      "/completedorders",
-      "/mywallet",
-      "/myprofile",
-      "/comission",
-      "/account",
-      "/users",
-      "/support",
-      "/aboutus"
-    ];
-
-    // Check if path is protected
-    const isProtectedPath = protectedPaths.some(path => itemPath.startsWith(path));
-    
-    if (isProtectedPath && hasActivePlan === false) {
+    // ✅ ALL OTHER PATHS require active plan (including dashboard)
+    // If no active plan, show popup
+    if (hasActivePlan === false) {
       setShowPlanPopup(true);
       return;
     }
@@ -446,7 +428,10 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
     {
       icon: <i className="ri-user-line text-white"></i>,
       name: "Users",
-      path: "/users",
+      dropdown: [
+        { name: "All Users", path: "/users" },
+        { name: "My User Orders", path: "/myuserorders" },
+      ],
     },
     {
       icon: <i className="ri-chat-3-fill text-white"></i>,
@@ -532,7 +517,7 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
           ) : (
             <div className="flex items-center gap-2">
               <i className="ri-store-line text-green-600"></i>
-              <span>Vegiffyy Green Partner</span>
+              <span>Vegiffy Green Partner</span>
             </div>
           )}
         </div>
@@ -608,7 +593,7 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
                     </span>
                   </div>
                 ) : (
-                  // ✅ For normal links (with path)
+                  // ✅ For normal links (with path) - INCLUDING DASHBOARD
                   <button
                     onClick={() => handleMenuClick(item.path)}
                     className={`w-full text-left flex items-center py-3 px-3 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 ${location.pathname === item.path
@@ -618,10 +603,10 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
                   >
                     <span className="text-lg">{item.icon}</span>
                     <span
-                      className={`ml-3 ${isCollapsed && !isMobile ? "hidden" : "block"
+                      className={`ml-3 flex items-center justify-between w-full ${isCollapsed && !isMobile ? "hidden" : "flex"
                         }`}
                     >
-                      {item.name}
+                      <span>{item.name}</span>
                       {/* Show notification badge if exists */}
                       {item.badge && item.badge > 0 && (
                         <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold animate-pulse">
@@ -644,7 +629,7 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
                 Need Help?
               </p>
               <p className="text-gray-600 text-xs mt-1">
-                Contact Support: vendor@vegiffyy.com
+                Contact Support: vendor@vegiffy.in
               </p>
               <div className="flex justify-center space-x-3 mt-2">
                 <button className="text-gray-500 hover:text-green-600 transition-all duration-200 hover:scale-110">

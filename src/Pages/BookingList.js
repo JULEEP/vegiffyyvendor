@@ -13,7 +13,12 @@ import {
   FaBox,
   FaMoneyBillWave,
   FaMapMarkerAlt,
-  FaUser
+  FaUser,
+  FaTruck,
+  FaExclamationTriangle,
+  FaInfoCircle,
+  FaCheckCircle,
+  FaEyeSlash
 } from "react-icons/fa";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -32,12 +37,36 @@ const BookingList = () => {
   const [editLoading, setEditLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Error Popup State
+  const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [errorDetails, setErrorDetails] = useState(null);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
   // Filters and search
   const [statusFilter, setStatusFilter] = useState("All");
   const [dateFilter, setDateFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
   const vendorId = localStorage.getItem("vendorId");
+
+  // 🔒 Function to mask email
+  const maskEmail = (email) => {
+    if (!email || email === "N/A") return "N/A";
+    const [username, domain] = email.split("@");
+    if (!domain) return "***@***.***";
+    const maskedUsername = username.slice(0, 2) + "****";
+    const maskedDomain = domain.split(".")[0].slice(0, 1) + "***." + domain.split(".")[1];
+    return `${maskedUsername}@${maskedDomain}`;
+  };
+
+  // 🔒 Function to mask phone number
+  const maskPhone = (phone) => {
+    if (!phone || phone === "N/A") return "N/A";
+    if (phone.length < 10) return phone;
+    return phone.slice(0, 2) + "******" + phone.slice(-2);
+  };
 
   // Fetch bookings
   useEffect(() => {
@@ -59,11 +88,18 @@ const BookingList = () => {
               ? order.products.map((p) => `${p.name} (Qty: ${p.quantity})`).join(", ")
               : "No products";
 
+            const couponDetails = order.chargeCalculations?.couponDiscount || order.appliedCoupon || null;
+            const couponAmount = order.couponDiscount || 0;
+
             return {
               bookingId: order._id,
               userName: `${order.userId?.firstName || "N/A"} ${order.userId?.lastName || ""}`,
-              userEmail: order.userId?.email || "N/A",
-              userPhone: order.userId?.phoneNumber || "N/A",
+              // 🔒 Store original email and phone for internal use
+              originalUserEmail: order.userId?.email || "N/A",
+              originalUserPhone: order.userId?.phoneNumber || "N/A",
+              // 🔒 Masked versions for display
+              userEmail: maskEmail(order.userId?.email),
+              userPhone: maskPhone(order.userId?.phoneNumber),
               bookingDate: new Date(order.createdAt).toISOString().split("T")[0],
               bookingDateTime: new Date(order.createdAt).toLocaleString(),
               productName: productsDetails,
@@ -72,11 +108,12 @@ const BookingList = () => {
               totalAmount: order.totalPayable,
               status: order.orderStatus,
               deliveryCharge: order.deliveryCharge || 0,
-              couponDiscount: order.couponDiscount || 0,
+              couponDiscount: couponAmount,
+              couponDetails: couponDetails,
               paymentMethod: order.paymentMethod || "N/A",
               paymentStatus: order.paymentStatus || "N/A",
               deliveryBoy: order.deliveryBoyId ?
-                `${order.deliveryBoyId.fullName} (${order.deliveryBoyId.mobileNumber})` : "Not Assigned",
+                `${order.deliveryBoyId.fullName} (${maskPhone(order.deliveryBoyId.mobileNumber)})` : "Not Assigned",
               deliveryAddress: order.deliveryAddress ?
                 `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state} - ${order.deliveryAddress.postalCode}` : "N/A",
               preparationTime: order.preparationTime || null,
@@ -101,24 +138,19 @@ const BookingList = () => {
   useEffect(() => {
     let filtered = bookings;
 
-    // Apply status filter
     if (statusFilter !== "All") {
       filtered = filtered.filter(booking => booking.status === statusFilter);
     }
 
-    // Apply date filter
     if (dateFilter) {
       filtered = filtered.filter(booking => booking.bookingDate === dateFilter);
     }
 
-    // Apply search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(booking =>
         booking.bookingId.toLowerCase().includes(term) ||
         booking.userName.toLowerCase().includes(term) ||
-        booking.userEmail.toLowerCase().includes(term) ||
-        booking.userPhone.includes(term) ||
         booking.productName.toLowerCase().includes(term) ||
         booking.status.toLowerCase().includes(term) ||
         booking.paymentMethod.toLowerCase().includes(term)
@@ -142,7 +174,28 @@ const BookingList = () => {
   };
 
   const downloadExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(filteredBookings);
+    // For Excel export, we still need to include original data for business purposes
+    const excelData = filteredBookings.map(booking => ({
+      'Order ID': booking.bookingId,
+      'Customer Name': booking.userName,
+      // Include original for internal use
+      'Email': booking.originalUserEmail,
+      'Phone': booking.originalUserPhone,
+      'Order Date': booking.bookingDateTime,
+      'Products': booking.productName,
+      'Quantity': booking.quantity,
+      'Subtotal': booking.price,
+      'Total Amount': booking.totalAmount,
+      'Status': booking.status,
+      'Payment Method': booking.paymentMethod,
+      'Payment Status': booking.paymentStatus,
+      'Delivery Charge': booking.deliveryCharge,
+      'Coupon Discount': booking.couponDiscount,
+      'Preparation Time': booking.preparationTime || 'N/A',
+      'Delivery Address': booking.deliveryAddress
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Bookings");
     XLSX.writeFile(wb, "BookingList.xlsx");
@@ -151,13 +204,12 @@ const BookingList = () => {
   const generateInvoicePDF = (booking) => {
     const doc = new jsPDF({
       unit: "mm",
-      format: [80, 200],
+      format: [80, 250],
     });
 
     const startX = 5;
     let y = 10;
 
-    // Header
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
     doc.text("📦 Order Invoice", startX, y);
@@ -167,21 +219,20 @@ const BookingList = () => {
     doc.line(startX, y, 75, y);
     y += 6;
 
-    // Booking info
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.text(`Order ID: ${booking.bookingId}`, startX, y);
     y += 6;
     doc.text(`Customer: ${booking.userName}`, startX, y);
     y += 6;
-    doc.text(`Email: ${booking.userEmail}`, startX, y);
+    // Use original for invoice (internal document)
+    doc.text(`Email: ${booking.originalUserEmail}`, startX, y);
     y += 6;
-    doc.text(`Phone: ${booking.userPhone}`, startX, y);
+    doc.text(`Phone: ${booking.originalUserPhone}`, startX, y);
     y += 6;
     doc.text(`Date: ${booking.bookingDateTime}`, startX, y);
     y += 8;
 
-    // Restaurant Info
     doc.setFont("helvetica", "bold");
     doc.text("Restaurant:", startX, y);
     y += 6;
@@ -191,7 +242,6 @@ const BookingList = () => {
     doc.text(`${booking.raw.restaurantId?.locationName || "N/A"}`, startX, y);
     y += 8;
 
-    // Preparation Time (if available)
     if (booking.preparationTime) {
       doc.setFont("helvetica", "bold");
       doc.text("Preparation Time:", startX, y);
@@ -201,7 +251,20 @@ const BookingList = () => {
       y += 8;
     }
 
-    // Products Header
+    const couponDetails = booking.raw.chargeCalculations?.couponDiscount || booking.raw.appliedCoupon;
+    if (couponDetails && couponDetails.amount > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Coupon Applied:", startX, y);
+      y += 6;
+      doc.setFont("helvetica", "normal");
+      doc.text(`Code: ${couponDetails.couponCode || "N/A"}`, startX, y);
+      y += 6;
+      doc.text(`Type: ${couponDetails.discountType || "N/A"}`, startX, y);
+      y += 6;
+      doc.text(`Value: ${couponDetails.discountValue || 0}${couponDetails.discountType === 'percentage' ? '%' : '₹'}`, startX, y);
+      y += 8;
+    }
+
     doc.setFont("helvetica", "bold");
     doc.text("Order Items:", startX, y);
     y += 6;
@@ -221,7 +284,6 @@ const BookingList = () => {
     doc.line(startX, y, 75, y);
     y += 6;
 
-    // Totals
     doc.setFont("helvetica", "bold");
     doc.text("Subtotal:", startX, y);
     doc.text(`₹${booking.subTotal || booking.price || "N/A"}`, 75, y, { align: "right" });
@@ -232,7 +294,7 @@ const BookingList = () => {
     y += 6;
 
     if (booking.couponDiscount && booking.couponDiscount > 0) {
-      doc.text("Discount:", startX, y);
+      doc.text("Coupon Discount:", startX, y);
       doc.text(`- ₹${booking.couponDiscount}`, 75, y, { align: "right" });
       y += 6;
     }
@@ -250,14 +312,160 @@ const BookingList = () => {
     doc.text(`Payment: ${booking.paymentMethod} (${booking.paymentStatus})`, startX, y);
     y += 8;
 
+    if (couponDetails && couponDetails.amount > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#4CAF50");
+      doc.text(`Coupon: ${couponDetails.couponCode || "N/A"} applied`, startX, y);
+      y += 6;
+    }
+
     doc.setLineWidth(0.3);
     doc.line(startX, y, 75, y);
     y += 8;
 
     doc.setFontSize(7);
+    doc.setTextColor("#000");
     doc.text("Thank you for your order!", startX + 10, y);
 
     doc.save(`Invoice_${booking.bookingId}.pdf`);
+  };
+
+  // Success Popup Component
+  const SuccessPopup = () => {
+    if (!showSuccessPopup) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform animate-slideIn">
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-t-2xl p-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                <FaCheckCircle className="text-white text-2xl" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-xl">Success!</h3>
+                <p className="text-white text-sm opacity-90">Order updated successfully</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6">
+            <p className="text-gray-700 mb-4">{successMessage}</p>
+            
+            <button
+              onClick={() => setShowSuccessPopup(false)}
+              className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium rounded-xl hover:opacity-90 transition-opacity"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Error Popup Component - Shows EXACT backend message
+  const ErrorPopup = () => {
+    if (!showErrorPopup) return null;
+
+    const isDeliveryBoyError = errorMessage.includes("No delivery boys found") || 
+                               errorMessage.includes("all are busy");
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] p-4">
+        <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full transform animate-slideIn">
+          <div className={`rounded-t-3xl p-6 ${
+            isDeliveryBoyError 
+              ? 'bg-gradient-to-r from-orange-500 to-red-500' 
+              : 'bg-gradient-to-r from-red-500 to-pink-500'
+          }`}>
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                {isDeliveryBoyError ? (
+                  <FaTruck className="text-white text-2xl" />
+                ) : (
+                  <FaExclamationTriangle className="text-white text-2xl" />
+                )}
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-xl">
+                  {isDeliveryBoyError ? 'Delivery Issue' : 'Update Failed'}
+                </h3>
+                <p className="text-white text-sm opacity-90">
+                  {isDeliveryBoyError ? 'No delivery boy available' : 'Unable to update order'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6">
+            <div className="mb-4">
+              <p className="text-gray-700 font-medium mb-2">Error Message:</p>
+              <div className={`p-4 rounded-xl ${
+                isDeliveryBoyError 
+                  ? 'bg-orange-50 border border-orange-200' 
+                  : 'bg-red-50 border border-red-200'
+              }`}>
+                <p className={`font-medium ${
+                  isDeliveryBoyError ? 'text-orange-800' : 'text-red-800'
+                }`}>
+                  {errorMessage}
+                </p>
+              </div>
+            </div>
+
+            {isDeliveryBoyError && (
+              <div className="mb-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <div className="flex items-start space-x-2">
+                  <FaInfoCircle className="text-blue-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-blue-800 font-medium mb-1">What you can do:</p>
+                    <ul className="text-sm text-blue-700 space-y-1 list-disc pl-4">
+                      <li>Order will stay pending until a delivery boy is available</li>
+                      <li>You can try again in a few minutes</li>
+                      <li>Customer will be notified about the delay</li>
+                      <li>System automatically retries every minute</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {errorDetails && Object.keys(errorDetails).length > 0 && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500 mb-1">Technical Details:</p>
+                <pre className="text-xs text-gray-600 overflow-auto max-h-20">
+                  {JSON.stringify(errorDetails, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowErrorPopup(false)}
+                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-xl transition-colors"
+              >
+                Dismiss
+              </button>
+              
+              {isDeliveryBoyError && (
+                <button
+                  onClick={() => {
+                    setShowErrorPopup(false);
+                    if (editBooking) {
+                      openEditModal(editBooking);
+                    }
+                  }}
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors"
+                >
+                  Try Again
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Edit modal handlers
@@ -275,13 +483,9 @@ const BookingList = () => {
 
   const handleStatusChange = (e) => {
     setEditStatus(e.target.value);
-    // Clear preparation time if status is not Accepted
-    if (e.target.value !== "Accepted") {
-      setPreparationTime("");
-    }
   };
 
-  // Updated status update function with preparation time
+  // Updated status update function
   const submitStatusUpdate = async () => {
     if (!editBooking) return;
     setEditLoading(true);
@@ -291,20 +495,16 @@ const BookingList = () => {
       const vendorId = localStorage.getItem("vendorId");
       if (!vendorId) throw new Error("Vendor ID not found in localStorage");
 
-      // Prepare request body
       const requestBody = {
         orderStatus: editStatus,
       };
 
-      // Add preparationTime only when status is "Accepted"
-      if (editStatus === "Accepted") {
-        if (!preparationTime || preparationTime < 1) {
-          throw new Error("Preparation time is required when accepting an order");
-        }
+      if (preparationTime && preparationTime > 0) {
         requestBody.preparationTime = parseInt(preparationTime);
       }
 
-      // Using the new API endpoint
+      console.log("Updating order:", editBooking.bookingId, "with data:", requestBody);
+
       const res = await fetch(`https://api.vegiffyy.com/api/acceptorder/${editBooking.bookingId}/${vendorId}`, {
         method: "PUT",
         headers: {
@@ -313,29 +513,37 @@ const BookingList = () => {
         body: JSON.stringify(requestBody),
       });
 
-      if (!res.ok) throw new Error("Failed to update order status");
-
       const data = await res.json();
+      console.log("Response from server:", data);
 
       if (data.success) {
-        // Update UI
         setBookings((prev) =>
           prev.map((b) =>
             b.bookingId === editBooking.bookingId
               ? {
-                ...b,
-                status: editStatus,
-                preparationTime: editStatus === "Accepted" ? preparationTime : b.preparationTime
-              }
+                  ...b,
+                  status: editStatus,
+                  preparationTime: preparationTime || b.preparationTime
+                }
               : b
           )
         );
+        
+        setSuccessMessage("Order status updated successfully!");
+        setShowSuccessPopup(true);
         closeEditModal();
       } else {
-        setError(data.message || "API returned unsuccessful response on update");
+        const errorMsg = data.message || "Failed to update order status";
+        console.log("Error from backend:", errorMsg);
+        
+        setErrorMessage(errorMsg);
+        setErrorDetails(data);
+        setShowErrorPopup(true);
       }
     } catch (err) {
-      setError(err.message);
+      console.error("Error updating order:", err);
+      setErrorMessage(err.message || "Network error occurred");
+      setShowErrorPopup(true);
     } finally {
       setEditLoading(false);
     }
@@ -354,11 +562,15 @@ const BookingList = () => {
       const data = await res.json();
       if (data.success) {
         setBookings((prev) => prev.filter((b) => b.bookingId !== bookingId));
+        setSuccessMessage("Order deleted successfully!");
+        setShowSuccessPopup(true);
       } else {
-        setError("API returned unsuccessful response on delete");
+        setErrorMessage(data.message || "Failed to delete order");
+        setShowErrorPopup(true);
       }
     } catch (err) {
-      setError(err.message);
+      setErrorMessage(err.message);
+      setShowErrorPopup(true);
     }
     setDeleteLoading(false);
   };
@@ -394,6 +606,10 @@ const BookingList = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+      {/* Success and Error Popups */}
+      <SuccessPopup />
+      <ErrorPopup />
+
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border-l-4 border-blue-500">
@@ -449,7 +665,7 @@ const BookingList = () => {
                 <input
                   type="text"
                   id="search"
-                  placeholder="Search by order ID, name, email, phone, products..."
+                  placeholder="Search by order ID, name, products..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -595,9 +811,18 @@ const BookingList = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 space-y-1">
-                          <div className="font-medium">{booking.userName}</div>
-                          <div className="text-gray-600 text-xs">{booking.userEmail}</div>
-                          <div className="text-gray-500 text-xs">{booking.userPhone}</div>
+                          <div className="font-medium flex items-center">
+                            <FaUser className="mr-2 text-gray-400" size={12} />
+                            {booking.userName}
+                          </div>
+                          <div className="text-gray-600 text-xs flex items-center">
+                            <FaEyeSlash className="mr-1 text-gray-400" size={10} />
+                            {booking.userEmail}
+                          </div>
+                          <div className="text-gray-500 text-xs flex items-center">
+                            <FaEyeSlash className="mr-1 text-gray-400" size={10} />
+                            {booking.userPhone}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -617,6 +842,11 @@ const BookingList = () => {
                           {booking.deliveryCharge > 0 && (
                             <div className="text-gray-500 text-xs">
                               Delivery: ₹{booking.deliveryCharge}
+                            </div>
+                          )}
+                          {booking.couponDiscount > 0 && (
+                            <div className="text-green-600 text-xs">
+                              Coupon: -₹{booking.couponDiscount}
                             </div>
                           )}
                         </div>
@@ -669,7 +899,7 @@ const BookingList = () => {
         </div>
       </div>
 
-      {/* View Modal - IMPROVED PRODUCT DISPLAY */}
+      {/* View Modal */}
       {viewBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -695,8 +925,19 @@ const BookingList = () => {
                   </h4>
                   <div className="space-y-2 text-sm">
                     <div><strong>Name:</strong> {viewBooking.userName}</div>
-                    <div><strong>Email:</strong> {viewBooking.userEmail}</div>
-                    <div><strong>Phone:</strong> {viewBooking.userPhone}</div>
+                    {/* 🔒 Masked email and phone in view modal */}
+                    <div><strong>Email:</strong> 
+                      <span className="ml-2 flex items-center">
+                        <FaEyeSlash className="mr-1 text-gray-400" size={12} />
+                        {viewBooking.userEmail}
+                      </span>
+                    </div>
+                    <div><strong>Phone:</strong> 
+                      <span className="ml-2 flex items-center">
+                        <FaEyeSlash className="mr-1 text-gray-400" size={12} />
+                        {viewBooking.userPhone}
+                      </span>
+                    </div>
                     <div><strong>Order Date:</strong> {viewBooking.bookingDateTime}</div>
                   </div>
                 </div>
@@ -746,7 +987,7 @@ const BookingList = () => {
                 <p className="text-sm">{viewBooking.deliveryAddress}</p>
               </div>
 
-              {/* Order Items - IMPROVED DISPLAY */}
+              {/* Order Items */}
               <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
                 <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
                   <FaBox className="mr-2 text-orange-600" />
@@ -825,6 +1066,82 @@ const BookingList = () => {
                     <span className="text-lg font-bold text-green-600">₹{viewBooking.totalAmount || 0}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Coupon Details Section */}
+              <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Coupon Details
+                </h4>
+                
+                {(() => {
+                  const couponDetails = viewBooking.raw.chargeCalculations?.couponDiscount || viewBooking.raw.appliedCoupon;
+                  
+                  if (couponDetails && couponDetails.amount > 0) {
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-purple-100">
+                          <div>
+                            <div className="font-medium text-gray-800">{couponDetails.couponCode || "N/A"}</div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              {couponDetails.discountType === 'percentage' 
+                                ? `${couponDetails.discountValue}% discount`
+                                : `Flat ₹${couponDetails.discountValue} off`
+                              }
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-green-600">- ₹{couponDetails.amount}</div>
+                            <div className="text-xs text-gray-500 mt-1">Applied</div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-sm text-gray-600 space-y-2">
+                          {couponDetails.calculation && (
+                            <div><strong>Calculation:</strong> {couponDetails.calculation}</div>
+                          )}
+                          <div><strong>Discount Type:</strong> 
+                            <span className={`ml-2 px-2 py-1 rounded text-xs font-medium ${couponDetails.discountType === 'percentage' 
+                              ? 'bg-blue-100 text-blue-800' 
+                              : 'bg-green-100 text-green-800'}`}>
+                              {couponDetails.discountType}
+                            </span>
+                          </div>
+                          {couponDetails.couponId && (
+                            <div><strong>Coupon ID:</strong> {couponDetails.couponId}</div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  } else if (viewBooking.couponDiscount > 0) {
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-purple-100">
+                          <div>
+                            <div className="font-medium text-gray-800">Discount Applied</div>
+                            <div className="text-sm text-gray-600 mt-1">Coupon discount applied</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-green-600">- ₹{viewBooking.couponDiscount}</div>
+                            <div className="text-xs text-gray-500 mt-1">Applied</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="text-center py-4 text-gray-500">
+                        <svg className="w-8 h-8 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <p>No coupon applied</p>
+                      </div>
+                    );
+                  }
+                })()}
               </div>
 
               {/* Additional Order Information */}
@@ -914,31 +1231,29 @@ const BookingList = () => {
                 </select>
               </div>
 
-              {/* Preparation Time Field - Only show when status is Accepted */}
-              {editStatus === "Accepted" && (
-                <div>
-                  <label
-                    htmlFor="preparationTime"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Preparation Time (minutes):
-                  </label>
-                  <input
-                    type="number"
-                    id="preparationTime"
-                    min="1"
-                    max="300"
-                    value={preparationTime}
-                    onChange={(e) => setPreparationTime(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="Enter preparation time in minutes"
-                    disabled={editLoading}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Estimated time needed to prepare this order
-                  </p>
-                </div>
-              )}
+              {/* Preparation Time Field - Now Optional */}
+              <div>
+                <label
+                  htmlFor="preparationTime"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Preparation Time (minutes): <span className="text-gray-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="number"
+                  id="preparationTime"
+                  min="1"
+                  max="300"
+                  value={preparationTime}
+                  onChange={(e) => setPreparationTime(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Enter preparation time in minutes (optional)"
+                  disabled={editLoading}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Estimated time needed to prepare this order (optional)
+                </p>
+              </div>
             </div>
 
             {/* Footer */}
@@ -953,7 +1268,7 @@ const BookingList = () => {
               <button
                 onClick={submitStatusUpdate}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                disabled={!editStatus || editLoading || (editStatus === "Accepted" && !preparationTime)}
+                disabled={!editStatus || editLoading}
               >
                 {editLoading ? (
                   <>
@@ -986,6 +1301,23 @@ const BookingList = () => {
           </div>
         </div>
       )}
+
+      {/* Custom animations */}
+      <style jsx>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-50px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-slideIn {
+          animation: slideIn 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 };

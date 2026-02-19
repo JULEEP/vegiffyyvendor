@@ -12,7 +12,8 @@ import {
   FiX,
   FiTrash2,
   FiCheckSquare,
-  FiSquare
+  FiSquare,
+  FiLoader
 } from 'react-icons/fi';
 
 const VendorNotifications = () => {
@@ -21,6 +22,11 @@ const VendorNotifications = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+  
+  // State for delete functionality
+  const [selectedNotifications, setSelectedNotifications] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
@@ -44,6 +50,8 @@ const VendorNotifications = () => {
           new Date(b.createdAt) - new Date(a.createdAt)
         );
         setNotifications(sortedNotifications);
+        // Clear selected notifications when fetching new data
+        setSelectedNotifications([]);
       } else {
         console.error('Failed to fetch notifications:', result.message);
         setNotifications([]);
@@ -54,6 +62,136 @@ const VendorNotifications = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // DELETE NOTIFICATION FUNCTION - Single delete
+  const deleteNotification = async (notificationId) => {
+    // Show confirmation
+    if (!window.confirm('Are you sure you want to delete this notification?')) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      const vendorId = localStorage.getItem('vendorId');
+      
+      if (!vendorId) {
+        alert('Vendor ID not found');
+        return;
+      }
+
+      // API call for delete
+      const response = await fetch(`https://api.vegiffyy.com/api/vendor/deletenotification/${vendorId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          notificationIds: [notificationId]
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update local state - remove deleted notification
+        setNotifications(prev => prev.filter(notif => notif._id !== notificationId));
+        
+        // Close modal if deleting the viewed notification
+        if (selectedNotification && selectedNotification._id === notificationId) {
+          closeNotificationDetails();
+        }
+        
+        // Remove from selected notifications if present
+        setSelectedNotifications(prev => prev.filter(id => id !== notificationId));
+        
+        // Show success message
+        alert(result.message);
+      } else {
+        alert(result.message || 'Failed to delete notification');
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      alert('Error deleting notification. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // BULK DELETE FUNCTION - Delete multiple selected notifications
+  const deleteSelectedNotifications = async () => {
+    if (selectedNotifications.length === 0) return;
+
+    try {
+      setIsDeleting(true);
+      const vendorId = localStorage.getItem('vendorId');
+      
+      if (!vendorId) {
+        alert('Vendor ID not found');
+        return;
+      }
+
+      // API call for bulk delete
+      const response = await fetch(`https://api.vegiffyy.com/api/vendor/deletenotification/${vendorId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          notificationIds: selectedNotifications
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update local state - remove all selected notifications
+        setNotifications(prev => prev.filter(notif => !selectedNotifications.includes(notif._id)));
+        
+        // Clear selected notifications
+        setSelectedNotifications([]);
+        
+        // Close modal if viewing a deleted notification
+        if (selectedNotification && selectedNotifications.includes(selectedNotification._id)) {
+          closeNotificationDetails();
+        }
+        
+        // Hide delete confirmation modal
+        setShowDeleteConfirm(false);
+        
+        // Show success message
+        alert(result.message);
+      } else {
+        alert(result.message || 'Failed to delete notifications');
+      }
+    } catch (error) {
+      console.error('Error deleting notifications:', error);
+      alert('Error deleting notifications. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // SELECT/DESELECT ALL notifications
+  const toggleSelectAll = () => {
+    if (selectedNotifications.length === filteredNotifications.length) {
+      // Deselect all
+      setSelectedNotifications([]);
+    } else {
+      // Select all
+      setSelectedNotifications(filteredNotifications.map(n => n._id));
+    }
+  };
+
+  // SELECT/DESELECT single notification
+  const toggleSelectNotification = (notificationId) => {
+    setSelectedNotifications(prev => {
+      if (prev.includes(notificationId)) {
+        return prev.filter(id => id !== notificationId);
+      } else {
+        return [...prev, notificationId];
+      }
+    });
   };
 
   // Format notification type
@@ -119,56 +257,6 @@ const VendorNotifications = () => {
     }
   };
 
-  // Mark as read
-  const markAsRead = async (notificationId) => {
-    try {
-      const vendorId = localStorage.getItem('vendorId');
-      // API call for mark as read
-      // const response = await fetch(`/api/notification/${notificationId}/read`, {
-      //   method: 'PUT',
-      // });
-      
-      // Update local state
-      setNotifications(prev => prev.map(notif => 
-        notif._id === notificationId ? { ...notif, isRead: true } : notif
-      ));
-      
-      // If viewing this notification, update it
-      if (selectedNotification && selectedNotification._id === notificationId) {
-        setSelectedNotification(prev => ({ ...prev, isRead: true }));
-      }
-    } catch (error) {
-      console.error('Error marking as read:', error);
-    }
-  };
-
-  // Mark all as read
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(notif => ({ ...notif, isRead: true })));
-  };
-
-  // Delete notification
-  const deleteNotification = async (notificationId) => {
-    if (window.confirm('Are you sure you want to delete this notification?')) {
-      try {
-        // API call for delete
-        // const response = await fetch(`/api/notification/${notificationId}`, {
-        //   method: 'DELETE',
-        // });
-        
-        // Update local state
-        setNotifications(prev => prev.filter(notif => notif._id !== notificationId));
-        
-        // Close modal if deleting the viewed notification
-        if (selectedNotification && selectedNotification._id === notificationId) {
-          closeNotificationDetails();
-        }
-      } catch (error) {
-        console.error('Error deleting notification:', error);
-      }
-    }
-  };
-
   // Filter notifications
   const filteredNotifications = notifications.filter(notification => {
     if (!searchTerm) return true;
@@ -187,10 +275,6 @@ const VendorNotifications = () => {
   const openNotificationDetails = (notification) => {
     setSelectedNotification(notification);
     setShowNotificationModal(true);
-    // Mark as read when opened
-    if (!notification.isRead) {
-      markAsRead(notification._id);
-    }
   };
 
   const closeNotificationDetails = () => {
@@ -240,7 +324,7 @@ const VendorNotifications = () => {
           </div>
         </div>
 
-        {/* Action Bar */}
+        {/* Action Bar - NO MARK AS READ BUTTONS */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex-1">
@@ -258,15 +342,22 @@ const VendorNotifications = () => {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              {unreadCount > 0 && (
+              {/* Bulk Delete Button */}
+              {selectedNotifications.length > 0 && (
                 <button
-                  onClick={markAllAsRead}
-                  className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  disabled={isDeleting}
                 >
-                  <FiCheckSquare className="w-4 h-4" />
-                  <span>Mark All Read</span>
+                  {isDeleting ? (
+                    <FiLoader className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FiTrash2 className="w-4 h-4" />
+                  )}
+                  <span>Delete Selected ({selectedNotifications.length})</span>
                 </button>
               )}
+              
               <button
                 onClick={fetchNotifications}
                 className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -294,120 +385,153 @@ const VendorNotifications = () => {
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
-              {filteredNotifications.map((notification) => {
-                const typeInfo = getNotificationTypeInfo(notification.type);
-                const TypeIcon = typeInfo.icon;
-                
-                return (
-                  <div 
-                    key={notification._id} 
-                    className={`p-6 hover:bg-gray-50 transition-colors ${!notification.isRead ? 'bg-blue-50' : ''}`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4 flex-1">
-                        <div className={`p-2 rounded-lg ${typeInfo.color}`}>
-                          <TypeIcon className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeInfo.color}`}>
-                              {typeInfo.label}
-                            </span>
-                            {!notification.isRead && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                New
-                              </span>
+            <div>
+              {/* Select All Header */}
+              <div className="bg-gray-50 px-6 py-3 border-b border-gray-200 flex items-center">
+                <button
+                  onClick={toggleSelectAll}
+                  className="flex items-center space-x-2 text-gray-700 hover:text-gray-900"
+                >
+                  {selectedNotifications.length === filteredNotifications.length ? (
+                    <FiCheckSquare className="w-5 h-5 text-blue-600" />
+                  ) : (
+                    <FiSquare className="w-5 h-5" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {selectedNotifications.length === filteredNotifications.length 
+                      ? 'Deselect All' 
+                      : 'Select All'}
+                  </span>
+                </button>
+                {selectedNotifications.length > 0 && (
+                  <span className="ml-4 text-sm text-gray-500">
+                    {selectedNotifications.length} selected
+                  </span>
+                )}
+              </div>
+              
+              <div className="divide-y divide-gray-200">
+                {filteredNotifications.map((notification) => {
+                  const typeInfo = getNotificationTypeInfo(notification.type);
+                  const TypeIcon = typeInfo.icon;
+                  const isSelected = selectedNotifications.includes(notification._id);
+                  
+                  return (
+                    <div 
+                      key={notification._id} 
+                      className={`p-6 hover:bg-gray-50 transition-colors ${!notification.isRead ? 'bg-blue-50' : ''} ${isSelected ? 'bg-blue-50' : ''}`}
+                    >
+                      <div className="flex items-start justify-between">
+                        {/* Checkbox for selection */}
+                        <div className="flex-shrink-0 mr-4">
+                          <button
+                            onClick={() => toggleSelectNotification(notification._id)}
+                            className="focus:outline-none"
+                          >
+                            {isSelected ? (
+                              <FiCheckSquare className="w-5 h-5 text-blue-600" />
+                            ) : (
+                              <FiSquare className="w-5 h-5 text-gray-400 hover:text-gray-600" />
                             )}
-                            <span className="text-xs text-gray-500 flex items-center">
-                              <FiClock className="w-3 h-3 mr-1" />
-                              {formatDate(notification.createdAt)}
-                            </span>
+                          </button>
+                        </div>
+                        
+                        <div className="flex items-start space-x-4 flex-1">
+                          <div className={`p-2 rounded-lg ${typeInfo.color}`}>
+                            <TypeIcon className="w-5 h-5" />
                           </div>
-                          
-                          <h4 className="font-medium text-gray-900 mb-1">
-                            {notification.title}
-                          </h4>
-                          <p className="text-gray-600 text-sm mb-2">
-                            {notification.message}
-                          </p>
-                          
-                          {/* Order details if available */}
-                          {notification.data && notification.data.orderNumber && (
-                            <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-                              <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div>
-                                  <span className="text-gray-500">Order #:</span>
-                                  <span className="ml-2 font-medium text-gray-900">
-                                    {notification.data.orderNumber}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">Amount:</span>
-                                  <span className="ml-2 font-medium text-green-600">
-                                    ₹{notification.data.totalAmount || 'N/A'}
-                                  </span>
-                                </div>
-                                {notification.data.customerName && (
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeInfo.color}`}>
+                                {typeInfo.label}
+                              </span>
+                              {!notification.isRead && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  New
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-500 flex items-center">
+                                <FiClock className="w-3 h-3 mr-1" />
+                                {formatDate(notification.createdAt)}
+                              </span>
+                            </div>
+                            
+                            <h4 className="font-medium text-gray-900 mb-1">
+                              {notification.title}
+                            </h4>
+                            <p className="text-gray-600 text-sm mb-2">
+                              {notification.message}
+                            </p>
+                            
+                            {/* Order details if available */}
+                            {notification.data && notification.data.orderNumber && (
+                              <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                                <div className="grid grid-cols-2 gap-2 text-sm">
                                   <div>
-                                    <span className="text-gray-500">Customer:</span>
+                                    <span className="text-gray-500">Order #:</span>
                                     <span className="ml-2 font-medium text-gray-900">
-                                      {notification.data.customerName}
+                                      {notification.data.orderNumber}
                                     </span>
                                   </div>
-                                )}
-                                <div>
-                                  <span className="text-gray-500">Payment:</span>
-                                  <span className={`ml-2 font-medium ${
-                                    notification.data.paymentStatus === 'Paid' 
-                                      ? 'text-green-600' 
-                                      : 'text-yellow-600'
-                                  }`}>
-                                    {notification.data.paymentMethod || 'N/A'}
-                                  </span>
+                                  <div>
+                                    <span className="text-gray-500">Amount:</span>
+                                    <span className="ml-2 font-medium text-green-600">
+                                      ₹{notification.data.totalAmount || 'N/A'}
+                                    </span>
+                                  </div>
+                                  {notification.data.customerName && (
+                                    <div>
+                                      <span className="text-gray-500">Customer:</span>
+                                      <span className="ml-2 font-medium text-gray-900">
+                                        {notification.data.customerName}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <span className="text-gray-500">Payment:</span>
+                                    <span className={`ml-2 font-medium ${
+                                      notification.data.paymentStatus === 'Paid' 
+                                        ? 'text-green-600' 
+                                        : 'text-yellow-600'
+                                    }`}>
+                                      {notification.data.paymentMethod || 'N/A'}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          )}
-                          
-                          <div className="mt-3 flex items-center space-x-3">
-                            <button
-                              onClick={() => openNotificationDetails(notification)}
-                              className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 transition-colors text-sm"
-                            >
-                              <FiEye className="w-4 h-4" />
-                              <span>View Details</span>
-                            </button>
-                            
-                            {!notification.isRead && (
-                              <button
-                                onClick={() => markAsRead(notification._id)}
-                                className="flex items-center space-x-1 text-green-600 hover:text-green-800 transition-colors text-sm"
-                              >
-                                <FiCheckSquare className="w-4 h-4" />
-                                <span>Mark as Read</span>
-                              </button>
                             )}
                             
-                            <button
-                              onClick={() => deleteNotification(notification._id)}
-                              className="flex items-center space-x-1 text-red-600 hover:text-red-800 transition-colors text-sm"
-                            >
-                              <FiTrash2 className="w-4 h-4" />
-                              <span>Delete</span>
-                            </button>
+                            <div className="mt-3 flex items-center space-x-3">
+                              <button
+                                onClick={() => openNotificationDetails(notification)}
+                                className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 transition-colors text-sm"
+                              >
+                                <FiEye className="w-4 h-4" />
+                                <span>View Details</span>
+                              </button>
+                              
+                              {/* Delete Button */}
+                              <button
+                                onClick={() => deleteNotification(notification._id)}
+                                className="flex items-center space-x-1 text-red-600 hover:text-red-800 transition-colors text-sm"
+                                disabled={isDeleting}
+                              >
+                                <FiTrash2 className="w-4 h-4" />
+                                <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Notification Details Modal */}
+        {/* Notification Details Modal - NO MARK AS READ BUTTON */}
         {showNotificationModal && selectedNotification && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -598,27 +722,17 @@ const VendorNotifications = () => {
                   )}
                 </div>
 
-                {/* Action Buttons */}
+                {/* Action Buttons - NO MARK AS READ BUTTON */}
                 <div className="mt-6 flex justify-between">
                   <div className="flex space-x-3">
-                    {!selectedNotification.isRead && (
-                      <button
-                        onClick={() => {
-                          markAsRead(selectedNotification._id);
-                          closeNotificationDetails();
-                        }}
-                        className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        <FiCheckSquare className="w-4 h-4" />
-                        <span>Mark as Read</span>
-                      </button>
-                    )}
+                    {/* Delete Button in Modal */}
                     <button
                       onClick={() => deleteNotification(selectedNotification._id)}
                       className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      disabled={isDeleting}
                     >
                       <FiTrash2 className="w-4 h-4" />
-                      <span>Delete</span>
+                      <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
                     </button>
                   </div>
                   <button
@@ -626,6 +740,54 @@ const VendorNotifications = () => {
                     className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
                   >
                     Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal for Bulk Delete */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-lg max-w-md w-full">
+              <div className="p-6">
+                <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+                  <FiTrash2 className="w-6 h-6 text-red-600" />
+                </div>
+                
+                <h3 className="text-lg font-bold text-gray-900 text-center mb-2">
+                  Delete {selectedNotifications.length} Notification{selectedNotifications.length > 1 ? 's' : ''}?
+                </h3>
+                
+                <p className="text-gray-600 text-center mb-6">
+                  Are you sure you want to delete {selectedNotifications.length} selected notification{selectedNotifications.length > 1 ? 's' : ''}? This action cannot be undone.
+                </p>
+
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    disabled={isDeleting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={deleteSelectedNotifications}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <>
+                        <FiLoader className="w-4 h-4 animate-spin" />
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiTrash2 className="w-4 h-4" />
+                        <span>Delete</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

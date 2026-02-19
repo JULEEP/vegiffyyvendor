@@ -45,32 +45,127 @@ const VendorUsers = () => {
     }
   };
 
+  // Format phone number to show only last 4 digits
+  const formatPhoneNumber = (phoneNumber) => {
+    if (!phoneNumber || phoneNumber === 'N/A') return 'XXXXXX';
+    
+    const phoneStr = phoneNumber.toString();
+    const phoneLength = phoneStr.length;
+    
+    if (phoneLength <= 4) return phoneStr;
+    
+    // Show last 4 digits, mask the rest
+    const lastFourDigits = phoneStr.slice(-4);
+    const maskedPart = 'X'.repeat(phoneLength - 4);
+    
+    return `${maskedPart}${lastFourDigits}`;
+  };
+
+  // Format name to show only first letter and last name with X
+  const formatName = (firstName = '', lastName = '') => {
+    if (!firstName && !lastName) return 'XXXXXX';
+    
+    const firstLetter = firstName.charAt(0) || 'X';
+    const formattedLastName = lastName || 'XXXX';
+    
+    return `${firstLetter}. ${formattedLastName}`;
+  };
+
+  // Format email to mask with X
+  const formatEmail = (email) => {
+    if (!email || email === 'No email') return 'xxxxxx@xxxxx.xxx';
+    
+    const [username, domain] = email.split('@');
+    if (!username || !domain) return 'xxxxxx@xxxxx.xxx';
+    
+    // Mask username (keep first and last character if possible)
+    let maskedUsername = 'X'.repeat(Math.min(username.length, 6));
+    if (username.length > 1) {
+      maskedUsername = username.charAt(0) + 'X'.repeat(Math.max(0, username.length - 2)) + (username.length > 1 ? username.charAt(username.length - 1) : '');
+    }
+    
+    // Mask domain
+    const domainParts = domain.split('.');
+    if (domainParts.length >= 2) {
+      const maskedDomain = 'x'.repeat(Math.min(domainParts[0].length, 6));
+      const extension = domainParts.slice(1).join('.');
+      return `${maskedUsername}@${maskedDomain}.${extension}`;
+    }
+    
+    return `${maskedUsername}@xxxxx.xxx`;
+  };
+
+  // Format city to show only first letter with X
+  const formatCity = (city) => {
+    if (!city || city === 'N/A') return 'XXXXXX';
+    
+    if (city.length <= 3) return 'XXX';
+    
+    return city.charAt(0) + 'X'.repeat(city.length - 1);
+  };
+
+  // Format referral code with X
+  const formatReferralCode = (code) => {
+    if (!code || code === 'N/A') return 'XXXXXX';
+    
+    if (code.length <= 4) return 'XXXX';
+    
+    // Show first and last character, mask the rest
+    const firstChar = code.charAt(0);
+    const lastChar = code.charAt(code.length - 1);
+    const maskedPart = 'X'.repeat(code.length - 2);
+    
+    return `${firstChar}${maskedPart}${lastChar}`;
+  };
+
   // Format user data based on API response structure
   const formatUserData = (user) => {
     return {
       _id: user._id,
-      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A',
-      email: user.email || 'No email',
-      mobileNumber: user.phoneNumber || 'N/A',
-      city: user.addresses && user.addresses.length > 0 ? user.addresses[0].city : 'N/A',
+      originalFullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A',
+      fullName: formatName(user.firstName || '', user.lastName || ''),
+      originalEmail: user.email || 'No email',
+      email: user.email || 'No email', // This will be formatted in filteredUsers
+      originalMobileNumber: user.phoneNumber || 'N/A',
+      mobileNumber: user.phoneNumber || 'N/A', // This will be formatted in filteredUsers
+      originalCity: user.addresses && user.addresses.length > 0 ? user.addresses[0].city : 'N/A',
+      city: user.addresses && user.addresses.length > 0 ? user.addresses[0].city : 'N/A', // This will be formatted in filteredUsers
       joinDate: user.createdAt,
       status: user.isVerified ? 'verified' : 'pending',
-      referralCode: user.referralCode || 'N/A'
+      originalReferralCode: user.referralCode || 'N/A',
+      referralCode: user.referralCode || 'N/A' // This will be formatted in filteredUsers
     };
   };
 
   const filteredUsers = users
     .map(formatUserData)
     .filter(user =>
-      user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.mobileNumber?.includes(searchTerm) ||
-      user.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.referralCode?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+      user.originalFullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.originalEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.originalMobileNumber?.includes(searchTerm) ||
+      user.originalCity?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.originalReferralCode?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .map(user => ({
+      ...user,
+      fullName: user.fullName,
+      email: formatEmail(user.originalEmail),
+      mobileNumber: formatPhoneNumber(user.originalMobileNumber),
+      city: formatCity(user.originalCity),
+      referralCode: formatReferralCode(user.originalReferralCode)
+    }));
 
   const openUserDetails = (user) => {
-    setSelectedUser(user);
+    // For modal, show masked data
+    const userWithMaskedData = {
+      ...user,
+      fullName: formatName(user.originalFullName.split(' ')[0] || '', user.originalFullName.split(' ')[1] || ''),
+      email: formatEmail(user.originalEmail),
+      mobileNumber: formatPhoneNumber(user.originalMobileNumber),
+      city: formatCity(user.originalCity),
+      referralCode: formatReferralCode(user.originalReferralCode)
+    };
+    setSelectedUser(userWithMaskedData);
     setShowUserModal(true);
   };
 
@@ -187,7 +282,7 @@ const VendorUsers = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 flex items-center">
                           <FiPhone className="w-4 h-4 mr-2 text-gray-400" />
-                          {user.mobileNumber}
+                          <span className="font-mono">{user.mobileNumber}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -268,7 +363,7 @@ const VendorUsers = () => {
                       <FiPhone className="w-5 h-5 text-gray-400" />
                       <div>
                         <p className="text-sm text-gray-500">Mobile Number</p>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-gray-900 font-mono">
                           {selectedUser.mobileNumber}
                         </p>
                       </div>

@@ -119,13 +119,13 @@ const CreateProductForm = () => {
       return;
     }
 
-    // Updated validation to include discount as required field
+    // Updated validation - imageFile is now optional
     const hasEmptyRecommendedFields = recommended.some(item => 
-      !item.name || !item.price || !item.discount || !item.category || !item.imageFile
+      !item.name || !item.price || !item.discount || !item.category
     );
 
     if (hasEmptyRecommendedFields) {
-      alert("Please fill all required fields (Name, Price, Discount, Category, Image) for each recommended product");
+      alert("Please fill all required fields (Name, Price, Discount, Category) for each recommended product");
       return;
     }
 
@@ -158,7 +158,7 @@ const CreateProductForm = () => {
 
     formData.append("recommended", JSON.stringify(formattedRecommended));
 
-    // Attach recommended images
+    // Attach recommended images (only if they exist)
     recommended.forEach((item, index) => {
       if (item.imageFile) {
         console.log(`📤 Appending recommended image ${index}:`, item.imageFile.name);
@@ -321,7 +321,7 @@ const CreateProductForm = () => {
                     />
                   </div>
 
-                  {/* Discount - Made Required */}
+                  {/* Discount */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Discount (%) <span className="text-red-500">*</span>
@@ -427,19 +427,18 @@ const CreateProductForm = () => {
                     </button>
                   </div>
 
-                  {/* Image Upload */}
+                  {/* Image Upload - Now Optional */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Product Image <span className="text-red-500">*</span>
+                      Product Image (Optional)
                     </label>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={(e) => handleRecommendedImageChange(index, e)}
                       className="p-2 border border-gray-300 rounded w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                      required
                     />
-                    {item.imageFile && (
+                    {item.imageFile ? (
                       <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
                         <p className="text-sm text-green-700 flex items-center gap-2">
                           <span>✅</span>
@@ -447,6 +446,8 @@ const CreateProductForm = () => {
                           <span className="text-xs text-green-600">({Math.round(item.imageFile.size / 1024)} KB)</span>
                         </p>
                       </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-gray-500 italic">No image selected (optional)</p>
                     )}
                     <p className="text-xs text-gray-500 mt-1">Max file size: 5MB • Supported formats: JPG, PNG, WebP</p>
                   </div>

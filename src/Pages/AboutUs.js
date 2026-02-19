@@ -24,7 +24,7 @@ const AboutUs = () => {
     {
       icon: <FiUsers className="text-3xl text-purple-600" />,
       title: "Trusted Community",
-      description: "Join thousands of customers who trust Vegiffyy for their daily vegetarian food needs."
+      description: "Join thousands of customers who trust Vegiffy for their daily vegetarian food needs."
     },
     {
       icon: <FiTarget className="text-3xl text-orange-600" />,
@@ -76,7 +76,7 @@ const AboutUs = () => {
             </div>
           </div>
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            About <span className="text-yellow-300">Vegiffyy</span>
+            About <span className="text-yellow-300">Vegiffy</span>
           </h1>
           <p className="text-xl md:text-2xl mb-8 text-green-100 max-w-3xl mx-auto leading-relaxed">
             India's Trusted 100% Pure Vegetarian Food Delivery Platform
@@ -158,7 +158,7 @@ const AboutUs = () => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Why Choose Vegiffyy?
+              Why Choose Vegiffy?
             </h2>
             <div className="w-20 h-1 bg-green-600 mx-auto mb-6"></div>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -198,7 +198,7 @@ const AboutUs = () => {
               </h2>
               <div className="w-20 h-1 bg-green-600 mb-6"></div>
               <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                Vegiffyy connects customers with trusted pure vegetarian restaurants, hotels, 
+                Vegiffy connects customers with trusted pure vegetarian restaurants, hotels, 
                 sweet shops, juice parlours, and cloud kitchens, ensuring every meal ordered 
                 through our platform follows strict vegetarian standards.
               </p>
@@ -262,7 +262,7 @@ const AboutUs = () => {
             </h2>
             <div className="w-20 h-1 bg-yellow-400 mx-auto mb-6"></div>
             <p className="text-xl text-green-100 max-w-2xl mx-auto">
-              The principles that guide everything we do at Vegiffyy
+              The principles that guide everything we do at Vegiffy
             </p>
           </div>
 
@@ -296,7 +296,7 @@ const AboutUs = () => {
               </div>
             </div>
             <h3 className="text-2xl font-bold mb-4">
-              Vegiffyy
+              Vegiffy
             </h3>
             <p className="text-gray-400 max-w-2xl mx-auto mb-6">
               India's First 100% Pure Vegetarian Food Delivery Platform - Where Trust Meets Taste
