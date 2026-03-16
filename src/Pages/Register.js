@@ -12,14 +12,16 @@ import {
   FiFileText,
   FiDownload,
   FiPercent,
-  FiHome,
   FiMap,
   FiUser,
   FiClipboard,
   FiFile,
   FiImage,
   FiCheckCircle,
-  FiAlertCircle
+  FiAlertCircle,
+  FiPlus,
+  FiMinus,
+  FiHome // 👈 Added for address icon
 } from "react-icons/fi";
 import { 
   MdRestaurant, 
@@ -31,8 +33,13 @@ import {
   MdDiscount,
   MdBusiness,
   MdSecurity,
-  MdAssignment
+  MdAssignment,
+  MdPermMedia,
+  MdGavel,
+  MdWarning,
+  MdLocationCity // 👈 Added for address
 } from "react-icons/md";
+import { FaIdCard } from "react-icons/fa";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
@@ -44,16 +51,21 @@ const AddVendorForm = () => {
     restaurantName: "",
     description: "",
     locationName: "",
+    fullAddress: "", // 👈 NEW FIELD ADDED
     email: "",
     mobile: "",
     gstNumber: "",
+    fssaiNo: "",
     referralCode: "",
     password: "",
     lat: "",
     lng: "",
     commission: "",
-    discount: ""
+    discount: "",
+    disclaimers: []
   });
+
+  const [currentDisclaimer, setCurrentDisclaimer] = useState("");
 
   const [files, setFiles] = useState({
     image: null,
@@ -109,7 +121,6 @@ const AddVendorForm = () => {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           
-          // Calculate new dimensions
           let width = img.width;
           let height = img.height;
           
@@ -136,6 +147,29 @@ const AddVendorForm = () => {
         };
       };
     });
+  };
+
+  // Add disclaimer to array
+  const addDisclaimer = () => {
+    if (!currentDisclaimer.trim()) {
+      setMessage({ type: "error", text: "Please enter a disclaimer" });
+      return;
+    }
+    
+    setForm(prev => ({
+      ...prev,
+      disclaimers: [...prev.disclaimers, currentDisclaimer.trim()]
+    }));
+    setCurrentDisclaimer("");
+    setMessage({ type: "success", text: "Disclaimer added successfully" });
+  };
+
+  // Remove disclaimer from array
+  const removeDisclaimer = (index) => {
+    setForm(prev => ({
+      ...prev,
+      disclaimers: prev.disclaimers.filter((_, i) => i !== index)
+    }));
   };
 
   // Generate Declaration PDF
@@ -170,7 +204,8 @@ const AddVendorForm = () => {
       'I, ________________________________________, Proprietor / Authorized Signatory of',
       '',
       `Restaurant Name: ${form.restaurantName || '___________________________'}`,
-      `Address: ${form.locationName || '___________________________'}`,
+      `FSSAI License No: ${form.fssaiNo || '___________________________'}`,
+      `Address: ${form.fullAddress || form.locationName || '___________________________'}`, // 👈 Using fullAddress
       '',
       'do hereby solemnly declare and affirm that:',
       '',
@@ -179,6 +214,14 @@ const AddVendorForm = () => {
       '3. All ingredients and food preparation processes follow pure vegetarian standards.',
       '4. We comply with FSSAI regulations and maintain proper hygiene standards.',
       '5. We understand any violation may lead to immediate delisting from Vegiffy.',
+      '',
+      // Add custom disclaimers
+      ...(form.disclaimers.length > 0 ? [
+        '',
+        'Additional Declarations:',
+        ...form.disclaimers.map((d, i) => `${i + 1}. ${d}`),
+        ''
+      ] : []),
       '',
       'This declaration is made for the purpose of onboarding with Vegiffy platform.',
       '',
@@ -244,7 +287,7 @@ const AddVendorForm = () => {
   'JAINITY EATS INDIA PRIVATE LIMITED, a private limited company incorporated under the Companies Act, 2013, having its registered office at 781, Sadar Bazar, Bolarum, Secunderabad, Telangana – 500010 (the "Company", which term shall include its parent and subsidiary companies and permitted assigns);',
   'AND',
   '',
-  `……………, a restaurant duly owned and operated by ……………, having its principal place of business at ${form.locationName || '……………'}, bearing GSTIN: …………… (the "Restaurant Partner", which term shall, unless repugnant to the context, include its successors and permitted assigns).`,
+  `……………, a restaurant duly owned and operated by ……………, having its principal place of business at ${form.fullAddress || form.locationName || '……………'}, bearing GSTIN: ……………, bearing FSSAI License No: ${form.fssaiNo || '……………'}, (the "Restaurant Partner", which term shall, unless repugnant to the context, include its successors and permitted assigns).`,
   'The Company and Restaurant Partner are hereinafter collectively referred to as the "Parties" and individually referred to as the "Party".',
   '',
   'WHEREAS, Vegiffy is a technology-driven platform engaged in operating an online marketplace and mobile application that facilitates discovery, listing, ordering, and payment, for exclusively vegetarian food and beverage services, enabling customers to place orders with participating restaurants;',
@@ -276,7 +319,7 @@ const AddVendorForm = () => {
   '18. "Vegiffy or Company" means Vegiffy and its present or future holding companies, subsidiaries, affiliates, successors, and assigns.',
   '19. "Vegetarian Food" means food and beverage items that do not contain meat, fish, poultry, eggs, or any animal-derived ingredients, in accordance with Vegiffy\'s vegetarian-only platform policy.',
   '',
-  '1. SCOPE OF WORK',
+  '2. SCOPE OF WORK',
   'a. Vegiffy shall provide the Restaurant Partner with access to the Vegiffy Platform for the purpose of listing the Restaurant, displaying its vegetarian menu, prices, images, descriptions, operating hours, and other relevant information, and enabling Customers to place Orders for Restaurant Services.',
   'b. Vegiffy shall facilitate the placement and transmission of Orders from Customers to the Restaurant Partner through the Platform, Merchant Application, web dashboard, API integration, or other communication modes as specified under this Agreement.',
   'c. Vegiffy shall enable Customers to make payments for Orders through permitted payment mechanisms, including cash-on-delivery, electronic payment modes, vouchers, or discount coupons (where applicable), and shall settle the Order Value with the Restaurant Partner in accordance with the agreed settlement terms, after applicable deductions.',
@@ -285,7 +328,7 @@ const AddVendorForm = () => {
   'f. Vegiffy shall facilitate statutory compliance relating to invoicing, tax collection (where applicable under law), reporting, and settlement in accordance with Applicable Laws, including GST and e-commerce regulations.',
   'g. The Parties expressly agree that the scope of work under this Agreement is on a principal-to-principal basis. Nothing contained herein shall be construed as creating any employment, agency, partnership, joint venture, or franchise relationship between Vegiffy and the Restaurant Partner.',
   '',
-  '2. OBLIGATIONS OF Vegiffy',
+  '3. OBLIGATIONS OF Vegiffy',
   'a. Vegiffy shall',
   'i. list the Restaurant Partner\'s menu and price list on the Platform; and',
   'ii. transfer to the Restaurant Partner the amounts received from the Customers in accordance with the agreed terms set out herein.',
@@ -295,7 +338,7 @@ const AddVendorForm = () => {
   'e. For the avoidance of doubt, it is hereby expressly clarified that Vegiffy is only responsible for providing a Platform to the Restaurant Partner to list, offer, and sell the Restaurant Services to the Customers and that Vegiffy shall not be responsible or liable for the quality of the Restaurant Services listed on the Platform and/or the processing of the Orders placed by Customers with the Restaurant Partner on the Platform; and/or any delay in preparation of the Order by the Restaurant Partner.',
   'f. Vegiffy may suspend the Restaurant Partner\'s account if the Restaurant Partner is found to be non-compliant with the Food Safety and Standards Act, 2006, and the rules, regulations, licences, standards, and guidelines issued thereunder from time to time.',
   '',
-  '3. OBLIGATIONS OF THE RESTAURANT PARTNER',
+  '4. OBLIGATIONS OF THE RESTAURANT PARTNER',
   'a. The Restaurant Partner shall not discriminate while servicing Orders received from Customers ordering via the App. The Restaurant Partner shall not provide any preferential treatment to customers ordering independently from the Restaurant Partner (i.e., customers ordering directly from the Restaurant Partner).',
   'b. The Restaurant Partner shall respect the dignity and diversity of Delivery Partners and accordingly shall not discriminate against any Delivery Partner on the basis of Discrimination Characteristics (as defined below). The Restaurant Partner is expected to enable the provision of a secure and fearless gig work environment for the Delivery Partners, including prevention and deterrence of harassment (including sexual harassment) towards Delivery Partners. For the purpose of these Terms, "Discrimination Characteristics" shall mean discrimination based on race, community, religion, disability, gender, sexual orientation, gender identity, age (insofar as permitted by applicable laws to undertake the relevant gig work), genetic information, or any other legally protected status.',
   'c. The Restaurant Partner shall ensure that all mandatory information pertaining to taxes, levies, and charges applicable on the Order(s) are clearly visible to the Customers on the invoice issued for any supply other than Restaurant Services, as per applicable laws. For the sake of clarity, in the case of Restaurant Services, Vegiffy shall generate the tax invoice on behalf of the Restaurant Partner in accordance with applicable GST laws and deposit the tax with the appropriate tax authorities.',
@@ -339,7 +382,7 @@ const AddVendorForm = () => {
   'ee. The Restaurant Partner acknowledges that having similar item names and images across multiple Restaurant listings operating from the same location may cause Customer confusion and adversely affect Platform experience.',
   'ff. In the event any Restaurant listings are found to be in violation of this Clause jj, Vegiffy shall notify the Restaurant Partner with a 30 (thirty) day written notice to make necessary corrections. Failure to do so shall entitle Vegiffy to take appropriate action, including removal of duplicate listings from the Platform, in accordance with its policies and this Agreement.',
   '',
-  '4. RESTAURANT PARTNER MENU AND PRICE LIST',
+  '5. RESTAURANT PARTNER MENU AND PRICE LIST',
   'a. Vegiffy shall display on the Platform the menu and price list of all its Restaurant Partners. The Restaurant Partner agrees that Vegiffy reserves the right, at its sole discretion, to modify or delete certain items from the Restaurant Partner\'s menu listed on the Platform in order to ensure compliance with the Food Safety and Standards Act, 2006, applicable laws in the relevant State or Union Territory, and all other applicable legislation, regulations, or regulatory standards. Vegiffy shall endeavour to update the price lists within forty-eight (48) hours of receiving written notification of any changes from the Restaurant Partner. Where the Restaurant Partner has a unilateral right to access the Restaurant Partner admin panel or dashboard (subject to Vegiffy\'s written consent) to edit and update the information displayed on the Platform by Vegiffy, the Restaurant Partner shall ensure that it:',
   'i. keeps such information true, accurate, and updated at all times;',
   'ii. complies with Vegiffy\'s internal terms and conditions of use in this regard; and',
@@ -353,7 +396,7 @@ const AddVendorForm = () => {
   'h. The Restaurant Partner acknowledges and agrees that Vegiffy shall use its best endeavours to prevent misuse of the Platform by Customers for placement of erroneous or fraudulent Orders. In the event of any erroneous or fraudulent Order, the Restaurant Partner undertakes to promptly report such Order to Vegiffy by contacting Vegiffy for appropriate action and investigation. For this purpose, Vegiffy provides built-in feature(s) within the Merchant Application and web dashboard that enable the Restaurant Partner to report erroneous or fraudulent Orders.',
   'i. The App may be modified or updated from time to time, without prior notice, to reflect any such changes.',
   '',
-  '5. PAYMENTS MECHANISM',
+  '6. PAYMENTS MECHANISM',
   'a. The Restaurant Partner acknowledges and agrees that the Platform shall provide the following payment mechanisms to Customers for payment of the Order Value:',
   'i. Cash on delivery;',
   'ii. Electronic payment mechanisms; and',
@@ -362,7 +405,7 @@ const AddVendorForm = () => {
   'c. All invoices shall be sent to the Restaurant Partner by email. Such invoices shall be issued from the respective registered office of Vegiffy from where the Services are being performed, in order to comply with the applicable Goods and Services Tax (GST) laws in India.',
   'd. The Restaurant Partner acknowledges and agrees that all amounts payable to Vegiffy under this Agreement shall be exclusive of applicable taxes, and that all such applicable taxes shall be charged separately.',
   '',
-  '6. OBLIGATIONS OF PARTIES IN CASE OF ONLINE PAYMENT ORDERS',
+  '7. OBLIGATIONS OF PARTIES IN CASE OF ONLINE PAYMENT ORDERS',
   'a. The Restaurant Partner shall comply with all of the following requirements upon receipt of an online payment Order:',
   'i. ensure that no additional payment is collected from the Customer (including, without limitation, cash payments) where the Customer has already made payment online;',
   'ii. comply with all special instructions contained on the Order receipt or as communicated by the Service Operator.',
@@ -370,7 +413,7 @@ const AddVendorForm = () => {
   'c. The Restaurant Partner shall disclose all relevant details pertaining to Problem Order(s) to Vegiffy, as and when required by Vegiffy.',
   'd. Vegiffy shall promptly communicate with its bank upon becoming aware of any fraud committed by a Customer.',
   '',
-  '7. PAYMENT SETTLEMENT PROCESS',
+  '8. PAYMENT SETTLEMENT PROCESS',
   'a. The Restaurant Partner acknowledges and agrees that any Order Value collected by Vegiffy for and on behalf of the Restaurant Partner in accordance with these Terms shall be remitted to the Restaurant Partner, subject to deduction by Vegiffy of the following amounts, as applicable:',
   'i. Service Fee (for cash-on-delivery Orders and online paid Orders);',
   'ii. Payment Mechanism Fee payable by the Restaurant Partner;',
@@ -379,7 +422,7 @@ const AddVendorForm = () => {
   'b. The Parties acknowledge and agree that after deduction of the aforesaid amounts, Vegiffy shall remit the Order Value payable to the Restaurant Partner on a weekly settlement basis, calculated from the date of receipt of payment by Vegiffy. For weekly settlements, remittance shall be made after allowing reasonable time for adjustments relating to Orders refused by Customers or refunded, in accordance with Reserve Bank of India guidelines for payment systems and nodal accounts ("Payment Settlement Day"). Orders serviced between Monday and Sunday shall be settled on or before Thursday of the following week. If such day is a bank holiday, settlement shall be made on the next working day.',
   'c. Notwithstanding anything contained in this Agreement, the Restaurant Partner hereby irrevocably authorises Vegiffy to set off, withhold, and deduct any amounts owed by the Restaurant Partner or its affiliates to any Vegiffy Group Company under any agreement or arrangement, from the Net Order Value payable to the Restaurant Partner. Such amounts shall be applied toward outstanding dues. For the purposes of this Clause, such deductions shall be deemed to form part of the Service Fee payable to Vegiffy. "Vegiffy Group Company" shall include all present or former direct or indirect subsidiaries, affiliates, or successors of Vegiffy.',
   '',
-  '8. CHARGES',
+  '9. CHARGES',
   'a. In consideration of the Services offered by Vegiffy to the Restaurant Partner, the Restaurant Partner undertakes to pay to Vegiffy charges including the Service Fee and Payment Mechanism Fee, at the rates set out in the Form.',
   'b. The Restaurant Partner acknowledges and agrees that where Vegiffy extends additional support services to the Restaurant Partner and/or Customers and incurs corresponding support costs, or where Vegiffy issues refunds to Customers on account of acts or omissions attributable to the Restaurant Partner, including but not limited to frequent rejection or time-out of Order(s), delay in accepting or handing over the Order(s), poor quality food, missing or incorrect items, poor quality packaging, etc., as may be communicated to the Restaurant Partner in periodic reports, Vegiffy reserves the right to levy additional charges solely at it\'s own discretion.',
   'c. For the purpose of this Agreement,',
@@ -387,7 +430,7 @@ const AddVendorForm = () => {
   'ii. Restaurant Partner rejected Orders: Orders that are not accepted (whether due to rejection or inaction resulting in time-out) by the Restaurant Partner, or Orders that are accepted but not fulfilled by the Restaurant Partner.',
   'iii. From time to time, Vegiffy may revise the fees for the Services, including, without limitation, the Service Fee rates, Payment Mechanism Fee, and any other charges or fees, or introduce additional charges or fees, by providing the Restaurant Partner with at least seven (7) days\' prior intimation before such changes or additional charges take effect.',
   '',
-  '9. TAXES',
+  '10. TAXES',
   'a. The Restaurant Partner shall be solely responsible for the computation, collection, payment, filing, and compliance of all applicable taxes, duties, levies, and statutory charges in relation to Customer Orders and the Restaurant Partner\'s use of the Vegiffy Platform and Services, except to the extent expressly required by Applicable Law to be collected or paid by Vegiffy.',
   'b. Where applicable under law, Vegiffy may collect certain taxes from Customers on behalf of the Restaurant Partner. Any such taxes shall be collected by Vegiffy solely in the capacity of a facilitator and shall be remitted to the Restaurant Partner or the appropriate tax authorities, as required under Applicable Law.',
   'c. In accordance with Section 9(5) of the Central Goods and Services Tax Act, 2017, Vegiffy shall collect and deposit applicable GST on specified Restaurant Services supplied through the Platform. Such collection and payment shall be deemed full discharge of Vegiffy\'s tax obligations in this regard.',
@@ -397,7 +440,7 @@ const AddVendorForm = () => {
   'g. Vegiffy shall not be liable for any tax liability arising due to the Restaurant Partner\'s failure to comply with Applicable Law. The Restaurant Partner agrees to indemnify and hold harmless Vegiffy, its affiliates, and their respective directors, officers, employees, and representatives from and against any tax claims, penalties, interest, or losses arising from such non-compliance.',
   'h. Any discrepancy identified by the Restaurant Partner in tax deductions or collections shall be notified to Vegiffy within fifteen (15) days of receipt of the relevant statement or certificate. Vegiffy shall not be obligated to address any discrepancies reported after the statutory timelines prescribed under Applicable Law.',
   '',
-  '10. CONFIDENTIALITY',
+  '11. CONFIDENTIALITY',
   'a. Other than for the provision of Service(s) by Vegiffy, Vegiffy shall not share any information of the Restaurant Partner with third parties, unless such disclosure is requisitioned by government authorities.',
   'b. Other than for the purpose of availing Service(s) from Vegiffy, the Restaurant Partner shall not disclose any confidential information relating to Vegiffy, including but not limited to these Terms, Vegiffy\'s business strategies, pricing, revenues, expenses, Customer Data, and Order information, to any third party.',
   'c. The obligations under this Clause shall not apply to the extent that the Delivery Partner is required to disclose Confidential Information:',
@@ -407,7 +450,7 @@ const AddVendorForm = () => {
   'iv. The confidentiality obligations under this Clause shall not apply to any information that is or becomes publicly available through no act or omission of the Delivery Partner or any other person owing an obligation of confidentiality to Vegiffy.',
   'd. The obligations under this Clause shall survive the termination or expiry of this Agreement for any reason whatsoever.',
   '',
-  '11. WARRANTY AND INDEMNITY',
+  '12. WARRANTY AND INDEMNITY',
   'a. The Restaurant Partner warrants that in the event it ceases to carry on business, closes operations for a material period, or is otherwise unable to offer services to Customers, it shall promptly inform Vegiffy. Where the Restaurant Partner fails to do so, whether by omission or fault, Vegiffy shall not be held responsible for any liabilities, whether financial or otherwise.',
   'b. The Restaurant Partner warrants that it shall not offer for sale any potentially hazardous food, alcoholic beverages, tobacco products, or any other items prohibited under applicable law.',
   'c. Vegiffy warrants that it shall perform its obligations under this Agreement with reasonable skill and care.',
@@ -427,7 +470,7 @@ const AddVendorForm = () => {
   'x. arising from any misleading, incorrect, or false information or data provided by the Restaurant Partner;',
   'h. The Restaurant Partner acknowledges that it grants certain rights to Vegiffy to enable Vegiffy to provide Services to Customers. Vegiffy shall not be liable for any tax liability in respect of the supply of food and beverage items other than Restaurant Services by the Restaurant Partner to Customers, and the Restaurant Partner hereby agrees to indemnify Vegiffy against any such tax liabilities that may arise from such transactions.',
   '',
-  '12. CUSTOMER DATA',
+  '13. CUSTOMER DATA',
   'a. The Restaurant Partner agrees that it shall use the Customer Data solely for fulfilling the applicable Customer Orders and for complying with the Restaurant Partner\'s obligations under this Form. The Restaurant Partner further agrees that Customer Data shall not be used to enhance or supplement any database, file, or list of the Restaurant Partner or of any third party.',
   'b. The Restaurant Partner represents, warrants, and covenants that it shall not resell, broker, or otherwise disclose any Customer Data, whether in whole or in part, to any third party for any purpose whatsoever. The Restaurant Partner further agrees that it shall not use Customer Data for sending any unsolicited marketing messages, announcements, or for feedback purposes, and shall be solely responsible for ensuring that any third party with whom Customer Data is shared complies with the restrictions set forth herein.',
   'c. The Restaurant Partner agrees that it shall not copy or otherwise reproduce any Customer Data except to the extent necessary for fulfilling the applicable Customer Order. The Restaurant Partner (and any other persons to whom the Restaurant Partner provides Customer Data) shall implement and comply with reasonable security measures for protecting, handling, and securing Customer Data.',
@@ -436,7 +479,7 @@ const AddVendorForm = () => {
   'i. data of any Customer who was a customer of the Restaurant Partner prior to the Restaurant Partner\'s use of the Platform or the Vegiffy Services, but only in respect of data previously provided by such Customer to the Restaurant Partner; or',
   'ii. data supplied directly by a Customer to the Restaurant Partner, where such Customer becomes a customer of the Restaurant Partner and has explicitly opted to receive communications from the Restaurant Partner for the purposes for which such Customer Data is used, provided in all cases that the Restaurant Partner handles and uses such Customer Data in compliance with applicable laws and the Restaurant Partner\'s published privacy policy.',
   '',
-  '13. TERM AND TERMINATION',
+  '14. TERM AND TERMINATION',
   'a. The arrangement between the Parties shall commence on the Execution Date and, unless terminated earlier in accordance with this Clause, shall continue indefinitely. Either Party may terminate the arrangement, with or without cause, at any time by providing seven (7) days\' prior written notice to the other Party.',
   'b. Vegiffy may terminate the arrangement or suspend the Services of the Restaurant Partner with immediate effect if:',
   'i. the Restaurant Partner fails to conduct its business in accordance with this Agreement or the information provided to Vegiffy, including but not limited to proprietary rights, opening hours, delivery areas, delivery conditions, nature of food served, or pricing;',
@@ -454,12 +497,12 @@ const AddVendorForm = () => {
   'iii. false misrepresentation by the Restaurant Partner; and/or fraudulent activity.',
   'f. The Restaurant Partner agrees and acknowledges that, in addition to the right to suspend or terminate the Services, Vegiffy shall also have the right to withhold, set off, and deduct any payments due to the Restaurant Partner from Vegiffy. Solely for the purposes of this Clause, any such amounts withheld, set off, or deducted shall be deemed to form part of the Service Fee payable by the Restaurant Partner to Vegiffy under the Form and these Terms.',
   '',
-  '14. NOTICE REQUIREMENTS',
+  '15. NOTICE REQUIREMENTS',
   'a. Any notice, communication, or intimation under this Agreement shall be provided by Vegiffy to the Restaurant Partner through the App, dashboard notifications, email, or any other electronic mode. Such communication shall be deemed to have been validly served upon dispatch.',
   'b. The Restaurant Partner shall ensure that all contact details registered on the Platform are accurate and up to date. Vegiffy shall not be responsible for any failure of communication due to incorrect or outdated contact information.',
   'c. Any factors that prevent the Restaurant Partner from fulfilling its obligations towards Vegiffy or Customers shall be promptly reported to Vegiffy by contacting the Company by writing to Vegiffy at the designated support email address …………..',
   '',
-  '15. DISCLAIMERS',
+  '16. DISCLAIMERS',
   'a. To the fullest extent permitted by law, Vegiffy and its affiliates, and their respective officers, directors, members, employees, and agents, disclaim all warranties, whether express or implied, in connection with this Form, the Platform, and the Vegiffy Services, including implied warranties of merchantability, fitness for a particular purpose, and non-infringement.',
   'b. Vegiffy makes no warranties or representations regarding the accuracy or completeness of the content or data on the Platform, the Vegiffy Services, or any linked websites, and assumes no liability for:',
   'i. errors, mistakes, or inaccuracies of content or materials;',
@@ -469,20 +512,20 @@ const AddVendorForm = () => {
   'v. bugs, viruses, trojan horses, or similar issues transmitted by third parties; and/or',
   'vi. errors or omissions in content or any loss or damage arising from reliance on content made available through the Platform or Services.',
   '',
-  '16. LIMITATION OF LIABILITY',
+  '17. LIMITATION OF LIABILITY',
   'a. For the purposes of this Clause, "Liability" includes liability arising from breach of contract, negligence, misrepresentation, tort, restitution, or any other cause of action arising out of or in connection with this Form. Vegiffy does not exclude liability that cannot be excluded by law.',
   'b. Subject thereto, Vegiffy shall not be liable for loss of profits, goodwill, business, revenue, data, contracts, anticipated savings, fraudulent Orders, or any special, indirect, or consequential losses, whether foreseeable or otherwise. Vegiffy\'s aggregate liability under this Form shall not exceed the total value of the Order giving rise to the claim.',
   '',
-  '17. DISPUTE RESOLUTION',
+  '18. DISPUTE RESOLUTION',
   'a. This Agreement shall be governed by the laws of India. Courts at Hyderabad shall have exclusive jurisdiction.',
   'b. If a dispute arises regarding this Agreement, or the interpretation, breach, termination or validity of this Agreement, both Parties shall meet to attempt to resolve such disputes. If the dispute cannot be resolved within a reasonable period of time, then the Parties agree that such dispute shall be resolved by courts in Hyderabad having jurisdiction, according to Arbitration and Conciliation Act, 1996.',
   'c. If any provision of this Agreement is held to be illegal, invalid or unenforceable, in whole or in part, such provision shall be limited or eliminated to the minimum extent necessary so that the remainder of this Agreement will continue in full force and effect and be enforceable.',
   '',
-  '18. FORCE MAJEURE',
+  '19. FORCE MAJEURE',
   'a. Neither Party shall be liable for any failure or delay in the performance of its obligations under this Agreement (other than payment obligations) if such failure or delay arises due to events beyond its reasonable control, including but not limited to acts of God, natural disasters, floods, earthquakes, fire, epidemics or pandemics, acts of government or governmental authorities, lockdowns, curfews, internet or telecommunications failure, strikes, labour disputes, riots, civil commotion, war, terrorist acts, or any other similar event ("Force Majeure Event").',
   'b. During the continuance of a Force Majeure Event, Vegiffy shall be entitled to suspend or restrict access to the Platform without any liability. Performance of the affected obligations shall be suspended for the duration of the Force Majeure Event, and neither Party shall have any claim for damages arising therefrom.',
   '',
-  '19. MISCELLANEOUS',
+  '20. MISCELLANEOUS',
   'a. Waiver: Failure to enforce any right shall not constitute a waiver of such right.',
   'b. Severability: Invalidity of any provision shall not affect the remaining provisions.',
   'c. No Third-Party Rights: No third party shall have rights under this Agreement.',
@@ -491,7 +534,7 @@ const AddVendorForm = () => {
   'f. Change of Control: The Restaurant Partner consents to the transfer of this Form and personal information in the event of a sale of Vegiffy\'s business or assets.',
   'g. Acceptance of Vegiffy Privacy Policy: By executing this Agreement, the Restaurant Partner agrees to be bound by Vegiffy\'s privacy policy and shall promptly notify Vegiffy of any suspected data breach and cooperate in mitigation.',
   '',
-  '20. MODIFICATION',
+  '21. MODIFICATION',
   'a. Vegiffy may modify these Terms from time to time, and such modifications shall be effective immediately upon being reflected on the Platform and Website. The Restaurant Partner agrees to be bound by such modifications and acknowledges the importance of periodically reviewing the updated Terms.',
   'b. Where Vegiffy upgrades, modifies, or replaces the Services ("Service Modifications"), Vegiffy shall notify the Restaurant Partner in advance and provide an opportunity to review such changes. Continued use of the Services or any alternative services following such notification shall constitute acceptance of the Service Modifications.',
   '',
@@ -508,6 +551,14 @@ const AddVendorForm = () => {
   '',
   'FOR AND ON BEHALF OF THE RESTAURANT PARTNER',
   `Restaurant Name: ${form.restaurantName || ''}`,
+  `FSSAI License No: ${form.fssaiNo || ''}`,
+  `Address: ${form.fullAddress || form.locationName || ''}`, // 👈 Using fullAddress
+  ...(form.disclaimers.length > 0 ? [
+    '',
+    'Additional Declarations:',
+    ...form.disclaimers.map((d, i) => `${i + 1}. ${d}`),
+    ''
+  ] : []),
   'Name of Owner / Authorized Signatory:',
   'Designation:',
   'Signature:',
@@ -603,6 +654,7 @@ const AddVendorForm = () => {
 
   const validateForm = () => {
     if (!form.restaurantName) return "Restaurant name is required";
+    if (!form.fullAddress) return "Full address is required"; // 👈 Added validation
     if (!form.locationName) return "Location name is required";
     if (!form.email) return "Email is required";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return "Please enter a valid email";
@@ -615,6 +667,7 @@ const AddVendorForm = () => {
     if (!form.discount) return "Discount percentage is required";
     if (isNaN(form.discount) || parseFloat(form.discount) < 0 || parseFloat(form.discount) > 100) return "Discount must be between 0 and 100%";
     if (!form.lat || !form.lng) return "Location coordinates are required";
+    if (!form.fssaiNo) return "FSSAI License Number is required";
     if (!files.image) return "Restaurant image is required";
     if (!files.fssaiLicense) return "FSSAI license is required";
     if (!files.panCard) return "PAN card is required";
@@ -643,9 +696,13 @@ const AddVendorForm = () => {
     try {
       const formData = new FormData();
       
-      // Add form fields
+      // Add form fields (including disclaimers array as JSON string)
       Object.keys(form).forEach(key => {
-        if (form[key] !== "") formData.append(key, form[key]);
+        if (key === 'disclaimers') {
+          formData.append(key, JSON.stringify(form[key]));
+        } else if (form[key] !== "") {
+          formData.append(key, form[key]);
+        }
       });
 
       // Add files
@@ -665,7 +722,7 @@ const AddVendorForm = () => {
         timeout: 300000 // 5 minutes timeout
       };
 
-      const res = await axios.post("https://api.Vegiffyy.com/api/restaurant", formData, config);
+      const res = await axios.post("https://api.vegiffyy.com/api/restaurant", formData, config);
       
       if (res.data.success) {
         setMessage({ type: "success", text: "Restaurant created successfully!" });
@@ -823,7 +880,7 @@ const AddVendorForm = () => {
             <div className="space-y-2">
               <label className="block font-medium text-gray-700">
                 <MdLocationOn className="inline mr-2 text-green-600" />
-                Location Name *
+                Location Name (Area/Landmark) *
               </label>
               <input
                 type="text"
@@ -831,8 +888,27 @@ const AddVendorForm = () => {
                 value={form.locationName}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                placeholder="Enter location name"
+                placeholder="e.g., Bolarum, Secunderabad"
               />
+            </div>
+
+            {/* 👇 NEW FIELD: Full Address */}
+            <div className="space-y-2 md:col-span-2">
+              <label className="block font-medium text-gray-700">
+                <MdLocationCity className="inline mr-2 text-green-600" />
+                Full Address *
+              </label>
+              <textarea
+                name="fullAddress"
+                value={form.fullAddress}
+                onChange={handleChange}
+                rows="2"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter complete address with street, building, landmark, city, pincode"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Please provide complete address for delivery and verification purposes
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -935,6 +1011,21 @@ const AddVendorForm = () => {
 
             <div className="space-y-2">
               <label className="block font-medium text-gray-700">
+                <FaIdCard className="inline mr-2 text-green-600" />
+                FSSAI License No. *
+              </label>
+              <input
+                type="text"
+                name="fssaiNo"
+                value={form.fssaiNo}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter FSSAI license number"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block font-medium text-gray-700">
                 <MdBusiness className="inline mr-2 text-green-600" />
                 GST Number (Optional)
               </label>
@@ -946,6 +1037,72 @@ const AddVendorForm = () => {
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 placeholder="Enter GST number"
               />
+            </div>
+          </div>
+
+          {/* Disclaimers Section */}
+          <div className="border border-orange-200 rounded-lg p-4 bg-orange-50">
+            <h3 className="font-semibold text-orange-800 text-lg mb-3 flex items-center gap-2">
+              <MdWarning className="text-orange-600" />
+              Additional Disclaimers
+            </h3>
+            
+            <div className="space-y-4">
+              {/* Input field with Add button */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={currentDisclaimer}
+                  onChange={(e) => setCurrentDisclaimer(e.target.value)}
+                  placeholder="Enter disclaimer (e.g., No onion no garlic)"
+                  className="flex-1 border border-orange-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addDisclaimer();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={addDisclaimer}
+                  className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors font-medium flex items-center gap-2"
+                >
+                  <FiPlus />
+                  Add
+                </button>
+              </div>
+
+              {/* List of added disclaimers */}
+              {form.disclaimers.length > 0 ? (
+                <div className="space-y-2">
+                  {form.disclaimers.map((disclaimer, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-200"
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="bg-orange-100 text-orange-700 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold mt-0.5">
+                          {index + 1}
+                        </span>
+                        <p className="text-gray-700 flex-1">{disclaimer}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeDisclaimer(index)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
+                        title="Remove disclaimer"
+                      >
+                        <FiMinus size={18} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-orange-600 text-sm italic">
+                  No disclaimers added yet. Add disclaimers about your restaurant (e.g., "Pure Jain Food", "No onion garlic", etc.)
+                </p>
+              )}
             </div>
           </div>
 

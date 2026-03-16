@@ -93,7 +93,7 @@ const CommissionReport = () => {
             order.orderStatus === "delivered"
           );
 
-          // Map orders with ALL calculations
+          // Map orders with ALL calculations - ONLY customer name shown
           const processedOrders = deliveredOrders.map((order) => {
             const subTotal = order.subTotal || 0;
             
@@ -118,7 +118,7 @@ const CommissionReport = () => {
               orderDate: new Date(order.createdAt).toISOString().split("T")[0],
               orderDateTime: new Date(order.createdAt).toLocaleString(),
               customerName: `${order.userId?.firstName || "N/A"} ${order.userId?.lastName || ""}`,
-              customerPhone: order.userId?.phoneNumber || "N/A",
+              // Phone and email are intentionally excluded
               restaurantName: order.restaurantId?.restaurantName || "N/A",
               
               // Order amounts
@@ -210,7 +210,6 @@ const CommissionReport = () => {
       filtered = filtered.filter(order =>
         order.orderId.toLowerCase().includes(term) ||
         order.customerName.toLowerCase().includes(term) ||
-        order.customerPhone.includes(term) ||
         order.restaurantName.toLowerCase().includes(term)
       );
     }
@@ -231,13 +230,12 @@ const CommissionReport = () => {
     setSelectedOrder(null);
   };
 
-  // Download Excel Report
+  // Download Excel Report - Removed phone number from export
   const downloadExcel = () => {
     const dataForExport = filteredOrders.map(order => ({
       "Order ID": order.orderId,
       "Date": order.orderDate,
       "Customer Name": order.customerName,
-      "Customer Phone": order.customerPhone,
       "Restaurant": order.restaurantName,
       
       "Subtotal (₹)": order.subTotal,
@@ -264,7 +262,6 @@ const CommissionReport = () => {
       "Order ID": "🔴 SUMMARY",
       "Date": "",
       "Customer Name": "",
-      "Customer Phone": "",
       "Restaurant": "",
       "Subtotal (₹)": summary.totalSubtotal,
       "Delivery Charge (₹)": "",
@@ -351,13 +348,13 @@ const CommissionReport = () => {
     y += 10;
     
     // Table headers
-    const headers = ["Order ID", "Date", "Subtotal", "Comm", "GST", "Vendor Gross", "TDS", "Net"];
+    const headers = ["Order ID", "Date", "Customer", "Subtotal", "Comm", "GST", "Vendor Gross", "TDS", "Net"];
     let x = 20;
     headers.forEach(header => {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7);
       doc.text(header, x, y);
-      x += header === "Order ID" ? 25 : 18;
+      x += header === "Order ID" ? 25 : header === "Customer" ? 20 : 18;
     });
     
     y += 7;
@@ -375,6 +372,7 @@ const CommissionReport = () => {
       const rowData = [
         order.orderId.substring(0, 6) + "...",
         order.orderDate.substring(5),
+        order.customerName.split(" ")[0] + "...", // Only first name with ellipsis
         `₹${order.subTotal.toFixed(2)}`,
         `₹${order.commissionAmount.toFixed(2)}`,
         `₹${order.gstOnCommission.toFixed(2)}`,
@@ -388,15 +386,15 @@ const CommissionReport = () => {
         doc.setFontSize(6);
         
         // Color coding
-        if (cellIndex === 3) doc.setTextColor(220, 38, 38);
-        else if (cellIndex === 4) doc.setTextColor(59, 130, 246);
-        else if (cellIndex === 5) doc.setTextColor(34, 197, 94);
-        else if (cellIndex === 6) doc.setTextColor(249, 115, 22);
-        else if (cellIndex === 7) doc.setTextColor(0, 0, 0);
+        if (cellIndex === 4) doc.setTextColor(220, 38, 38);
+        else if (cellIndex === 5) doc.setTextColor(59, 130, 246);
+        else if (cellIndex === 6) doc.setTextColor(34, 197, 94);
+        else if (cellIndex === 7) doc.setTextColor(249, 115, 22);
+        else if (cellIndex === 8) doc.setTextColor(0, 0, 0);
         else doc.setTextColor(0, 0, 0);
         
         doc.text(cell, x, y);
-        x += cellIndex === 0 ? 25 : 18;
+        x += cellIndex === 0 ? 25 : cellIndex === 2 ? 20 : 18;
       });
       
       y += 5;
@@ -764,9 +762,9 @@ const CommissionReport = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 space-y-1">
+                        <div className="text-sm text-gray-900">
                           <div className="font-medium">{order.customerName}</div>
-                          <div className="text-gray-500 text-xs">{order.customerPhone}</div>
+                          {/* Phone and email removed as requested */}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -825,13 +823,12 @@ const CommissionReport = () => {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Order Info */}
+              {/* Order Info - No phone number */}
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h4 className="font-semibold mb-2">Order #{selectedOrder.orderId}</h4>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>Date: {selectedOrder.orderDateTime}</div>
                   <div>Customer: {selectedOrder.customerName}</div>
-                  <div>Phone: {selectedOrder.customerPhone}</div>
                   <div>Restaurant: {selectedOrder.restaurantName}</div>
                 </div>
               </div>

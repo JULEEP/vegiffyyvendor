@@ -18,7 +18,12 @@ import {
   FaExclamationTriangle,
   FaInfoCircle,
   FaCheckCircle,
-  FaEyeSlash
+  FaEyeSlash,
+  FaMotorcycle,
+  FaBicycle,
+  FaCar,
+  FaWalking,
+  FaUserTag
 } from "react-icons/fa";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -68,6 +73,59 @@ const BookingList = () => {
     return phone.slice(0, 2) + "******" + phone.slice(-2);
   };
 
+  // 🛵 Function to get vehicle icon
+  const getVehicleIcon = (vehicleType) => {
+    if (!vehicleType) return <FaMotorcycle className="text-gray-400" />;
+    const type = vehicleType.toLowerCase();
+    if (type.includes("bike") || type.includes("motor")) return <FaMotorcycle className="text-blue-500" />;
+    if (type.includes("cycle") || type.includes("bicycle")) return <FaBicycle className="text-green-500" />;
+    if (type.includes("car") || type.includes("auto")) return <FaCar className="text-purple-500" />;
+    if (type.includes("walk")) return <FaWalking className="text-yellow-500" />;
+    return <FaMotorcycle className="text-gray-400" />;
+  };
+
+  // 🏍️ Function to format delivery boy details
+  const formatDeliveryBoy = (booking) => {
+    // Check if riderId exists (assigned delivery boy)
+    if (booking.riderId) {
+      return {
+        isAssigned: true,
+        id: booking.riderId._id,
+        name: booking.riderId.fullName || "N/A",
+        phone: booking.riderId.mobileNumber || "N/A",
+        maskedPhone: maskPhone(booking.riderId.mobileNumber || "N/A"),
+        vehicleType: booking.riderId.vehicleType || "Not specified",
+        email: booking.riderId.email || "N/A",
+        isActive: booking.riderId.isActive || false,
+        status: "Assigned"
+      };
+    }
+    
+    // Check if availableDeliveryBoys exists (available but not assigned)
+    else if (booking.availableDeliveryBoys && booking.availableDeliveryBoys.length > 0) {
+      const firstAvailable = booking.availableDeliveryBoys[0];
+      return {
+        isAssigned: false,
+        availableCount: booking.availableDeliveryBoys.length,
+        availableBoys: booking.availableDeliveryBoys.map(boy => ({
+          id: boy.deliveryBoyId || boy._id,
+          name: boy.fullName || "N/A",
+          phone: boy.mobileNumber || "N/A",
+          maskedPhone: maskPhone(boy.mobileNumber || "N/A"),
+          vehicleType: boy.vehicleType || "Not specified",
+          status: boy.status || "available"
+        }))
+      };
+    }
+    
+    // No delivery boy info
+    return {
+      isAssigned: false,
+      availableCount: 0,
+      message: "No delivery boy assigned"
+    };
+  };
+
   // Fetch bookings
   useEffect(() => {
     if (!vendorId) {
@@ -112,11 +170,12 @@ const BookingList = () => {
               couponDetails: couponDetails,
               paymentMethod: order.paymentMethod || "N/A",
               paymentStatus: order.paymentStatus || "N/A",
-              deliveryBoy: order.deliveryBoyId ?
-                `${order.deliveryBoyId.fullName} (${maskPhone(order.deliveryBoyId.mobileNumber)})` : "Not Assigned",
+              // 🆕 Enhanced delivery boy details
+              deliveryBoyInfo: formatDeliveryBoy(order),
               deliveryAddress: order.deliveryAddress ?
                 `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state} - ${order.deliveryAddress.postalCode}` : "N/A",
               preparationTime: order.preparationTime || null,
+              acceptedAt: order.acceptedAt || null,
               raw: order,
             };
           });
@@ -173,27 +232,45 @@ const BookingList = () => {
     }
   };
 
+  const getDeliveryBoyStatusClass = (isAssigned, count) => {
+    if (isAssigned) return "bg-green-100 text-green-700 border border-green-300";
+    if (count > 0) return "bg-blue-100 text-blue-700 border border-blue-300";
+    return "bg-gray-100 text-gray-500 border border-gray-300";
+  };
+
   const downloadExcel = () => {
     // For Excel export, we still need to include original data for business purposes
-    const excelData = filteredBookings.map(booking => ({
-      'Order ID': booking.bookingId,
-      'Customer Name': booking.userName,
-      // Include original for internal use
-      'Email': booking.originalUserEmail,
-      'Phone': booking.originalUserPhone,
-      'Order Date': booking.bookingDateTime,
-      'Products': booking.productName,
-      'Quantity': booking.quantity,
-      'Subtotal': booking.price,
-      'Total Amount': booking.totalAmount,
-      'Status': booking.status,
-      'Payment Method': booking.paymentMethod,
-      'Payment Status': booking.paymentStatus,
-      'Delivery Charge': booking.deliveryCharge,
-      'Coupon Discount': booking.couponDiscount,
-      'Preparation Time': booking.preparationTime || 'N/A',
-      'Delivery Address': booking.deliveryAddress
-    }));
+    const excelData = filteredBookings.map(booking => {
+      const deliveryInfo = booking.deliveryBoyInfo;
+      let deliveryDetails = "Not Assigned";
+      
+      if (deliveryInfo.isAssigned) {
+        deliveryDetails = `${deliveryInfo.name} (${deliveryInfo.phone}) - ${deliveryInfo.vehicleType}`;
+      } else if (deliveryInfo.availableCount > 0) {
+        deliveryDetails = `${deliveryInfo.availableCount} available delivery boys`;
+      }
+
+      return {
+        'Order ID': booking.bookingId,
+        'Customer Name': booking.userName,
+        'Email': booking.originalUserEmail,
+        'Phone': booking.originalUserPhone,
+        'Order Date': booking.bookingDateTime,
+        'Products': booking.productName,
+        'Quantity': booking.quantity,
+        'Subtotal': booking.price,
+        'Total Amount': booking.totalAmount,
+        'Status': booking.status,
+        'Payment Method': booking.paymentMethod,
+        'Payment Status': booking.paymentStatus,
+        'Delivery Charge': booking.deliveryCharge,
+        'Coupon Discount': booking.couponDiscount,
+        'Preparation Time': booking.preparationTime || 'N/A',
+        'Delivery Address': booking.deliveryAddress,
+        'Delivery Boy': deliveryDetails,
+        'Accepted At': booking.acceptedAt ? new Date(booking.acceptedAt).toLocaleString() : 'N/A'
+      };
+    });
 
     const ws = XLSX.utils.json_to_sheet(excelData);
     const wb = XLSX.utils.book_new();
@@ -204,7 +281,7 @@ const BookingList = () => {
   const generateInvoicePDF = (booking) => {
     const doc = new jsPDF({
       unit: "mm",
-      format: [80, 250],
+      format: [80, 300], // Slightly longer for delivery boy info
     });
 
     const startX = 5;
@@ -225,13 +302,39 @@ const BookingList = () => {
     y += 6;
     doc.text(`Customer: ${booking.userName}`, startX, y);
     y += 6;
-    // Use original for invoice (internal document)
     doc.text(`Email: ${booking.originalUserEmail}`, startX, y);
     y += 6;
     doc.text(`Phone: ${booking.originalUserPhone}`, startX, y);
     y += 6;
     doc.text(`Date: ${booking.bookingDateTime}`, startX, y);
     y += 8;
+
+    // Delivery Boy Info in Invoice
+    const deliveryInfo = booking.deliveryBoyInfo;
+    doc.setFont("helvetica", "bold");
+    doc.text("Delivery Details:", startX, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    
+    if (deliveryInfo.isAssigned) {
+      doc.text(`Rider: ${deliveryInfo.name}`, startX, y);
+      y += 5;
+      doc.text(`Contact: ${deliveryInfo.phone}`, startX, y);
+      y += 5;
+      doc.text(`Vehicle: ${deliveryInfo.vehicleType}`, startX, y);
+      y += 5;
+    } else if (deliveryInfo.availableCount > 0) {
+      doc.text(`${deliveryInfo.availableCount} delivery boys available`, startX, y);
+      y += 5;
+      deliveryInfo.availableBoys?.slice(0, 1).forEach(boy => {
+        doc.text(`e.g., ${boy.name} (${boy.vehicleType})`, startX, y);
+        y += 5;
+      });
+    } else {
+      doc.text("Delivery boy not assigned yet", startX, y);
+      y += 5;
+    }
+    y += 3;
 
     doc.setFont("helvetica", "bold");
     doc.text("Restaurant:", startX, y);
@@ -312,13 +415,6 @@ const BookingList = () => {
     doc.text(`Payment: ${booking.paymentMethod} (${booking.paymentStatus})`, startX, y);
     y += 8;
 
-    if (couponDetails && couponDetails.amount > 0) {
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor("#4CAF50");
-      doc.text(`Coupon: ${couponDetails.couponCode || "N/A"} applied`, startX, y);
-      y += 6;
-    }
-
     doc.setLineWidth(0.3);
     doc.line(startX, y, 75, y);
     y += 8;
@@ -364,7 +460,7 @@ const BookingList = () => {
     );
   };
 
-  // Error Popup Component - Shows EXACT backend message
+  // Error Popup Component
   const ErrorPopup = () => {
     if (!showErrorPopup) return null;
 
@@ -773,6 +869,9 @@ const BookingList = () => {
                     Status
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Delivery Boy
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -780,7 +879,7 @@ const BookingList = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredBookings.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                       <div className="flex flex-col items-center">
                         <svg className="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -790,108 +889,183 @@ const BookingList = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredBookings.map((booking) => (
-                    <tr key={booking.bookingId} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 space-y-1">
-                          <div className="font-medium">#{booking.bookingId}</div>
-                          <div className="text-gray-600 text-xs">
-                            {booking.bookingDateTime}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Payment: {booking.paymentMethod}
-                          </div>
-                          {booking.preparationTime && (
-                            <div className="text-xs text-green-600 flex items-center">
-                              <FaClock className="mr-1" size={10} />
-                              Prep: {booking.preparationTime} mins
+                  filteredBookings.map((booking) => {
+                    const deliveryInfo = booking.deliveryBoyInfo;
+                    
+                    return (
+                      <tr key={booking.bookingId} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 space-y-1">
+                            <div className="font-medium">#{booking.bookingId}</div>
+                            <div className="text-gray-600 text-xs">
+                              {booking.bookingDateTime}
                             </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 space-y-1">
-                          <div className="font-medium flex items-center">
-                            <FaUser className="mr-2 text-gray-400" size={12} />
-                            {booking.userName}
-                          </div>
-                          <div className="text-gray-600 text-xs flex items-center">
-                            <FaEyeSlash className="mr-1 text-gray-400" size={10} />
-                            {booking.userEmail}
-                          </div>
-                          <div className="text-gray-500 text-xs flex items-center">
-                            <FaEyeSlash className="mr-1 text-gray-400" size={10} />
-                            {booking.userPhone}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 space-y-1">
-                          <div className="font-medium">{booking.productName}</div>
-                          <div className="text-gray-600 text-xs">
-                            Qty: {booking.quantity} items
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 space-y-1">
-                          <div className="font-semibold">₹{booking.totalAmount}</div>
-                          <div className="text-gray-600 text-xs">
-                            Sub: ₹{booking.price}
-                          </div>
-                          {booking.deliveryCharge > 0 && (
-                            <div className="text-gray-500 text-xs">
-                              Delivery: ₹{booking.deliveryCharge}
+                            <div className="text-xs text-gray-500">
+                              Payment: {booking.paymentMethod}
                             </div>
-                          )}
-                          {booking.couponDiscount > 0 && (
-                            <div className="text-green-600 text-xs">
-                              Coupon: -₹{booking.couponDiscount}
+                            {booking.preparationTime && (
+                              <div className="text-xs text-green-600 flex items-center">
+                                <FaClock className="mr-1" size={10} />
+                                Prep: {booking.preparationTime} mins
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 space-y-1">
+                            <div className="font-medium flex items-center">
+                              <FaUser className="mr-2 text-gray-400" size={12} />
+                              {booking.userName}
                             </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusClass(booking.status)}`}>
-                          {booking.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            title="Download Invoice"
-                            onClick={() => generateInvoicePDF(booking)}
-                            className="inline-flex items-center p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <FaFilePdf />
-                          </button>
-                          <button
-                            title="View Details"
-                            onClick={() => setViewBooking(booking)}
-                            className="inline-flex items-center p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
-                          >
-                            <FaEye />
-                          </button>
-                          <button
-                            title="Edit Status"
-                            onClick={() => openEditModal(booking)}
-                            className="inline-flex items-center p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded-lg transition-colors"
-                          >
-                            <FaEdit />
-                          </button>
-                          <button
-                            title="Delete Order"
-                            disabled={deleteLoading}
-                            onClick={() => deleteOrder(booking.bookingId)}
-                            className={`inline-flex items-center p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ${deleteLoading ? "opacity-50 cursor-not-allowed" : ""
-                              }`}
-                          >
-                            <FaTrashAlt />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                            <div className="text-gray-600 text-xs flex items-center">
+                              <FaEyeSlash className="mr-1 text-gray-400" size={10} />
+                              {booking.userEmail}
+                            </div>
+                            <div className="text-gray-500 text-xs flex items-center">
+                              <FaEyeSlash className="mr-1 text-gray-400" size={10} />
+                              {booking.userPhone}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 space-y-1">
+                            <div className="font-medium">{booking.productName}</div>
+                            <div className="text-gray-600 text-xs">
+                              Qty: {booking.quantity} items
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 space-y-1">
+                            <div className="font-semibold">₹{booking.totalAmount}</div>
+                            <div className="text-gray-600 text-xs">
+                              Sub: ₹{booking.price}
+                            </div>
+                            {booking.deliveryCharge > 0 && (
+                              <div className="text-gray-500 text-xs">
+                                Delivery: ₹{booking.deliveryCharge}
+                              </div>
+                            )}
+                            {booking.couponDiscount > 0 && (
+                              <div className="text-green-600 text-xs">
+                                Coupon: -₹{booking.couponDiscount}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusClass(booking.status)}`}>
+                            {booking.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {/* Enhanced Delivery Boy Display */}
+                          <div className={`p-3 rounded-lg border ${getDeliveryBoyStatusClass(deliveryInfo.isAssigned, deliveryInfo.availableCount)}`}>
+                            {deliveryInfo.isAssigned ? (
+                              // Assigned delivery boy
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-semibold flex items-center">
+                                    <FaTruck className="mr-1 text-green-600" />
+                                    Assigned Rider
+                                  </span>
+                                  <span className="text-[10px] bg-green-200 text-green-800 px-2 py-0.5 rounded-full">
+                                    Active
+                                  </span>
+                                </div>
+                                <div className="flex items-start space-x-2">
+                                  {getVehicleIcon(deliveryInfo.vehicleType)}
+                                  <div className="flex-1">
+                                    <div className="text-sm font-medium text-gray-800">
+                                      {deliveryInfo.name}
+                                    </div>
+                                    <div className="text-xs text-gray-600 flex items-center mt-1">
+                                      <FaEyeSlash className="mr-1 text-gray-400" size={10} />
+                                      {maskPhone(deliveryInfo.phone)}
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      {deliveryInfo.vehicleType}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : deliveryInfo.availableCount > 0 ? (
+                              // Available delivery boys
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-semibold flex items-center">
+                                    <FaUserTag className="mr-1 text-blue-600" />
+                                    Available ({deliveryInfo.availableCount})
+                                  </span>
+                                </div>
+                                <div className="space-y-2 max-h-24 overflow-y-auto">
+                                  {deliveryInfo.availableBoys?.map((boy, idx) => (
+                                    <div key={idx} className="flex items-start space-x-2 p-2 bg-white bg-opacity-50 rounded-lg">
+                                      {getVehicleIcon(boy.vehicleType)}
+                                      <div className="flex-1">
+                                        <div className="text-xs font-medium text-gray-800">
+                                          {boy.name}
+                                        </div>
+                                        <div className="text-[10px] text-gray-500 flex items-center">
+                                          <FaEyeSlash className="mr-1 text-gray-400" size={8} />
+                                          {boy.maskedPhone}
+                                        </div>
+                                        <div className="text-[10px] text-gray-400">
+                                          {boy.vehicleType}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              // No delivery boy
+                              <div className="flex items-center justify-center py-2">
+                                <span className="text-xs text-gray-500 flex items-center">
+                                  <FaTruck className="mr-1 text-gray-400" />
+                                  Not Assigned
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              title="Download Invoice"
+                              onClick={() => generateInvoicePDF(booking)}
+                              className="inline-flex items-center p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <FaFilePdf />
+                            </button>
+                            <button
+                              title="View Details"
+                              onClick={() => setViewBooking(booking)}
+                              className="inline-flex items-center p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              <FaEye />
+                            </button>
+                            <button
+                              title="Edit Status"
+                              onClick={() => openEditModal(booking)}
+                              className="inline-flex items-center p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded-lg transition-colors"
+                            >
+                              <FaEdit />
+                            </button>
+                            <button
+                              title="Delete Order"
+                              disabled={deleteLoading}
+                              onClick={() => deleteOrder(booking.bookingId)}
+                              className={`inline-flex items-center p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ${deleteLoading ? "opacity-50 cursor-not-allowed" : ""
+                                }`}
+                            >
+                              <FaTrashAlt />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -925,7 +1099,6 @@ const BookingList = () => {
                   </h4>
                   <div className="space-y-2 text-sm">
                     <div><strong>Name:</strong> {viewBooking.userName}</div>
-                    {/* 🔒 Masked email and phone in view modal */}
                     <div><strong>Email:</strong> 
                       <span className="ml-2 flex items-center">
                         <FaEyeSlash className="mr-1 text-gray-400" size={12} />
@@ -961,15 +1134,122 @@ const BookingList = () => {
                     )}
                     <div><strong>Payment Method:</strong> {viewBooking.paymentMethod}</div>
                     <div><strong>Payment Status:</strong> {viewBooking.paymentStatus}</div>
-                    <div><strong>Delivery Agent:</strong> {viewBooking.deliveryBoy}</div>
                   </div>
                 </div>
               </div>
 
-              {/* Restaurant Details */}
+              {/* Delivery Boy Details - Enhanced */}
               <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
                 <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
-                  <FaUtensils className="mr-2 text-purple-600" />
+                  <FaTruck className="mr-2 text-purple-600" />
+                  Delivery Details
+                </h4>
+                <div className="space-y-4">
+                  {(() => {
+                    const deliveryInfo = viewBooking.deliveryBoyInfo;
+                    
+                    if (deliveryInfo.isAssigned) {
+                      return (
+                        <div className="bg-white rounded-lg p-4 border border-purple-100">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-semibold text-green-600 flex items-center">
+                              <FaCheckCircle className="mr-1" />
+                              Assigned Delivery Partner
+                            </span>
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                              Active
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs text-gray-500">Name</p>
+                              <p className="text-sm font-medium">{deliveryInfo.name}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Phone</p>
+                              <p className="text-sm flex items-center">
+                                {deliveryInfo.phone}
+                                <span className="ml-2 text-xs text-gray-400">
+                                  ({maskPhone(deliveryInfo.phone)})
+                                </span>
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Vehicle</p>
+                              <p className="text-sm flex items-center">
+                                {getVehicleIcon(deliveryInfo.vehicleType)}
+                                <span className="ml-2">{deliveryInfo.vehicleType}</span>
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Email</p>
+                              <p className="text-sm">{deliveryInfo.email || "N/A"}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    } else if (deliveryInfo.availableCount > 0) {
+                      return (
+                        <div className="bg-white rounded-lg p-4 border border-purple-100">
+                          <div className="flex items-center mb-3">
+                            <span className="text-sm font-semibold text-blue-600 flex items-center">
+                              <FaUserTag className="mr-1" />
+                              Available Delivery Partners ({deliveryInfo.availableCount})
+                            </span>
+                          </div>
+                          <div className="space-y-3 max-h-60 overflow-y-auto">
+                            {deliveryInfo.availableBoys?.map((boy, idx) => (
+                              <div key={idx} className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm font-medium">{boy.name}</span>
+                                  <span className={`text-xs px-2 py-1 rounded-full ${
+                                    boy.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+                                  }`}>
+                                    {boy.status}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <p className="text-xs text-gray-500">Phone</p>
+                                    <p className="text-xs flex items-center">
+                                      {boy.phone}
+                                      <span className="ml-1 text-gray-400">
+                                        ({maskPhone(boy.phone)})
+                                      </span>
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-gray-500">Vehicle</p>
+                                    <p className="text-xs flex items-center">
+                                      {getVehicleIcon(boy.vehicleType)}
+                                      <span className="ml-1">{boy.vehicleType}</span>
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="bg-white rounded-lg p-8 border border-purple-100 text-center">
+                          <FaTruck className="mx-auto text-4xl text-gray-300 mb-3" />
+                          <p className="text-gray-500">No delivery boy assigned yet</p>
+                          <p className="text-xs text-gray-400 mt-2">
+                            Delivery partner will be assigned automatically
+                          </p>
+                        </div>
+                      );
+                    }
+                  })()}
+                </div>
+              </div>
+
+              {/* Restaurant Details */}
+              <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+                  <FaUtensils className="mr-2 text-orange-600" />
                   Restaurant Details
                 </h4>
                 <div className="space-y-2 text-sm">
@@ -988,15 +1268,15 @@ const BookingList = () => {
               </div>
 
               {/* Order Items */}
-              <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+              <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
                 <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
-                  <FaBox className="mr-2 text-orange-600" />
+                  <FaBox className="mr-2 text-indigo-600" />
                   Order Items ({viewBooking.raw.products?.length || 0})
                 </h4>
                 <div className="space-y-4">
                   {viewBooking.raw.products && viewBooking.raw.products.length > 0 ? (
                     viewBooking.raw.products.map((product, index) => (
-                      <div key={index} className="flex items-start justify-between p-4 bg-white rounded-lg border border-orange-100 shadow-sm">
+                      <div key={index} className="flex items-start justify-between p-4 bg-white rounded-lg border border-indigo-100 shadow-sm">
                         <div className="flex items-start space-x-4 flex-1">
                           {/* Product Image */}
                           <div className="flex-shrink-0">
@@ -1017,8 +1297,12 @@ const BookingList = () => {
                             </div>
                             <div className="text-sm text-gray-600 space-y-1">
                               <div><strong>Quantity:</strong> {product.quantity}</div>
-                              <div><strong>Product ID:</strong> {product.restaurantProductId}</div>
-                              <div><strong>Recommended ID:</strong> {product.recommendedId}</div>
+                              <div><strong>Price:</strong> ₹{product.price}</div>
+                              {product.discountAmount > 0 && (
+                                <div className="text-green-600">
+                                  Discount: ₹{product.discountAmount}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1162,6 +1446,11 @@ const BookingList = () => {
                   <div>
                     <strong>Updated At:</strong> {new Date(viewBooking.raw.updatedAt).toLocaleString()}
                   </div>
+                  {viewBooking.acceptedAt && (
+                    <div>
+                      <strong>Accepted At:</strong> {new Date(viewBooking.acceptedAt).toLocaleString()}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

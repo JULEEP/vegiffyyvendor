@@ -29,8 +29,13 @@ import {
   FiCheck,
   FiFile,
   FiPercent,
-  FiTrendingUp
+  FiTrendingUp,
+  FiAlertCircle,
+  FiInfo,
+  FiHome // 👈 New icon for address
 } from 'react-icons/fi';
+import { FaIdCard, FaExclamationTriangle, FaAddressCard } from 'react-icons/fa'; // 👈 New icons
+import { MdLocationCity } from 'react-icons/md'; // 👈 New icon for full address
 
 const VendorProfile = () => {
   const [profileData, setProfileData] = useState(null);
@@ -72,10 +77,12 @@ const VendorProfile = () => {
           restaurantName: data.restaurantName || '',
           description: data.description || '',
           locationName: data.locationName || '',
+          fullAddress: data.fullAddress || '', // 👈 NEW FIELD ADDED
           rating: data.rating || '',
           status: data.status || 'active',
           gstNumber: data.gstNumber || '',
           commission: data.commission || 0
+          // fssaiNo and disclaimers are NOT included in edit form
         });
 
         // Set document previews if they exist
@@ -131,7 +138,7 @@ const VendorProfile = () => {
     try {
       const formData = new FormData();
       
-      // Append form fields
+      // Append form fields (only editable fields)
       Object.keys(editForm).forEach(key => {
         if (editForm[key] !== undefined && editForm[key] !== null) {
           formData.append(key, editForm[key]);
@@ -181,6 +188,7 @@ const VendorProfile = () => {
       restaurantName: profileData.restaurantName || '',
       description: profileData.description || '',
       locationName: profileData.locationName || '',
+      fullAddress: profileData.fullAddress || '', // 👈 NEW FIELD ADDED
       rating: profileData.rating || '',
       status: profileData.status || 'active',
       gstNumber: profileData.gstNumber || '',
@@ -537,6 +545,40 @@ const VendorProfile = () => {
     );
   };
 
+  // Disclaimers Section Component
+  const DisclaimersSection = ({ disclaimers }) => {
+    if (!disclaimers || disclaimers.length === 0) return null;
+    
+    return (
+      <div className="mb-8">
+        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <FaExclamationTriangle className="text-orange-500" />
+          Restaurant Disclaimers
+        </h3>
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-6">
+          <div className="space-y-3">
+            {disclaimers.map((disclaimer, index) => (
+              <div key={index} className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <span className="bg-orange-200 text-orange-700 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                    {index + 1}
+                  </span>
+                </div>
+                <p className="text-gray-700 flex-1">{disclaimer}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 pt-4 border-t border-orange-200">
+            <p className="text-sm text-orange-600 flex items-center gap-2">
+              <FiInfo className="text-orange-500" />
+              These disclaimers are displayed to all customers viewing your restaurant
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Document Upload Section
   const DocumentUploadSection = () => (
     <div className="mb-8">
@@ -775,7 +817,7 @@ const VendorProfile = () => {
                 {/* Location Name */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Location Name *
+                    Location Name (Area/Landmark) *
                   </label>
                   <input
                     type="text"
@@ -784,7 +826,27 @@ const VendorProfile = () => {
                     onChange={handleInputChange}
                     required
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g., Bolarum, Secunderabad"
                   />
+                </div>
+
+                {/* 👇 NEW FIELD: Full Address */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Address *
+                  </label>
+                  <textarea
+                    name="fullAddress"
+                    value={editForm.fullAddress}
+                    onChange={handleInputChange}
+                    rows="3"
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter complete address with street, building, landmark, city, pincode"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Please provide complete address for delivery and verification purposes
+                  </p>
                 </div>
 
                 {/* Description */}
@@ -798,8 +860,20 @@ const VendorProfile = () => {
                     onChange={handleInputChange}
                     rows="4"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Brief description about your restaurant..."
                   />
                 </div>
+              </div>
+
+              {/* Note about non-editable fields */}
+              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800 flex items-center gap-2">
+                  <FiInfo className="text-yellow-600" />
+                  <span>
+                    <strong>Note:</strong> FSSAI License Number and Disclaimers cannot be edited. 
+                    Please contact admin for any changes to these fields.
+                  </span>
+                </p>
               </div>
 
               {/* Action Buttons */}
@@ -975,6 +1049,9 @@ const VendorProfile = () => {
                   </div>
                 )}
 
+                {/* 👇 NEW SECTION: Disclaimers */}
+                <DisclaimersSection disclaimers={profileData.disclaimers} />
+
                 {/* Contact Information Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   {/* Location Information */}
@@ -985,10 +1062,22 @@ const VendorProfile = () => {
                         <FiMapPin className="text-red-600 text-xl" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900 mb-1">Location</h3>
+                        <h3 className="font-semibold text-gray-900 mb-1">Location (Area/Landmark)</h3>
                         <p className="text-gray-700">{profileData.locationName}</p>
+                      </div>
+                    </div>
+
+                    {/* 👇 NEW FIELD: Full Address */}
+                    <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
+                      <div className="p-3 bg-orange-100 rounded-full">
+                        <MdLocationCity className="text-orange-600 text-xl" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-1">Full Address</h3>
+                        <p className="text-gray-700 whitespace-pre-line">{profileData.fullAddress || 'Not provided'}</p>
                         {profileData.location?.coordinates && (
-                          <p className="text-sm text-gray-500 mt-1">
+                          <p className="text-sm text-gray-500 mt-2 flex items-center gap-1">
+                            <FiNavigation className="text-xs" />
                             Coordinates: {profileData.location.coordinates[1]?.toFixed(6) || 'N/A'}, {profileData.location.coordinates[0]?.toFixed(6) || 'N/A'}
                           </p>
                         )}
@@ -1002,7 +1091,19 @@ const VendorProfile = () => {
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-900 mb-1">GST Number</h3>
-                        <p className="text-gray-700 font-mono">{profileData.gstNumber}</p>
+                        <p className="text-gray-700 font-mono">{profileData.gstNumber || 'Not provided'}</p>
+                      </div>
+                    </div>
+
+                    {/* FSSAI Number (Display Only) */}
+                    <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
+                      <div className="p-3 bg-green-100 rounded-full">
+                        <FaIdCard className="text-green-600 text-xl" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-1">FSSAI License No.</h3>
+                        <p className="text-gray-700 font-mono">{profileData.fssaiNo || 'Not provided'}</p>
+                        <p className="text-xs text-gray-500 mt-1">14-digit FSSAI license number</p>
                       </div>
                     </div>
 
@@ -1134,7 +1235,11 @@ const VendorProfile = () => {
                     <DocumentCard
                       type="aadharCard"
                       title="Aadhar Card"
-                      data={profileData.aadharCard}
+                      data={{
+                        url: profileData.aadharCardFront?.url,
+                        public_id: profileData.aadharCardFront?.public_id
+                      }}
+                      uploadedAt={profileData.aadharCardFront?.uploadedAt}
                     />
 
                     {/* Declaration Form */}
@@ -1256,6 +1361,12 @@ const VendorProfile = () => {
                       <span className="font-medium text-gray-700">Total Reviews:</span>
                       <p className="text-gray-900 font-bold mt-1">{profileData.reviews?.length || 0}</p>
                     </div>
+                    <div className="md:col-span-2">
+                      <span className="font-medium text-gray-700">Full Address:</span>
+                      <p className="text-gray-600 mt-1 whitespace-pre-line bg-gray-50 p-2 rounded">
+                        {profileData.fullAddress || 'Not provided'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1302,6 +1413,12 @@ const VendorProfile = () => {
                 <span className="text-orange-500 mt-1">•</span>
                 <span>Hover over any document card and click the download icon to save it</span>
               </li>
+              {profileData.disclaimers && profileData.disclaimers.length > 0 && (
+                <li className="flex items-start gap-2">
+                  <span className="text-orange-500 mt-1">•</span>
+                  <span>Your restaurant has <strong>{profileData.disclaimers.length} disclaimer(s)</strong> displayed to customers</span>
+                </li>
+              )}
             </ul>
           </div>
         )}

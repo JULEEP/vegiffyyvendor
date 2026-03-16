@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   FiBell, 
   FiSearch, 
@@ -27,21 +27,32 @@ const VendorNotifications = () => {
   const [selectedNotifications, setSelectedNotifications] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
-
-  const fetchNotifications = async () => {
+  // Use useCallback to memoize the fetch function
+  const fetchNotifications = useCallback(async () => {
     try {
+      setError(null);
       const vendorId = localStorage.getItem('vendorId');
+      
       if (!vendorId) {
-        console.error('Vendor ID not found');
+        setError('Vendor ID not found. Please login again.');
         setLoading(false);
         return;
       }
 
-      const response = await fetch(`https://api.vegiffyy.com/api/vendor/notification/${vendorId}`);
+      // FIXED: Removed timestamp parameter
+      const response = await fetch(`https://api.vegiffyy.com/api/vendor/notification/${vendorId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const result = await response.json();
 
       if (result.success) {
@@ -49,20 +60,30 @@ const VendorNotifications = () => {
         const sortedNotifications = (result.data || []).sort((a, b) => 
           new Date(b.createdAt) - new Date(a.createdAt)
         );
+        
+        // Update notifications
         setNotifications(sortedNotifications);
-        // Clear selected notifications when fetching new data
-        setSelectedNotifications([]);
+        
+        // Clear selected notifications if they no longer exist
+        setSelectedNotifications(prev => 
+          prev.filter(id => sortedNotifications.some(n => n._id === id))
+        );
       } else {
-        console.error('Failed to fetch notifications:', result.message);
+        setError(result.message || 'Failed to fetch notifications');
         setNotifications([]);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      setError('Failed to fetch notifications. Please try again.');
       setNotifications([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   // DELETE NOTIFICATION FUNCTION - Single delete
   const deleteNotification = async (notificationId) => {
@@ -73,14 +94,14 @@ const VendorNotifications = () => {
 
     try {
       setIsDeleting(true);
+      setError(null);
       const vendorId = localStorage.getItem('vendorId');
       
       if (!vendorId) {
-        alert('Vendor ID not found');
+        setError('Vendor ID not found');
         return;
       }
 
-      // API call for delete
       const response = await fetch(`https://api.vegiffyy.com/api/vendor/deletenotification/${vendorId}`, {
         method: 'DELETE',
         headers: {
@@ -106,13 +127,13 @@ const VendorNotifications = () => {
         setSelectedNotifications(prev => prev.filter(id => id !== notificationId));
         
         // Show success message
-        alert(result.message);
+        alert(result.message || 'Notification deleted successfully');
       } else {
-        alert(result.message || 'Failed to delete notification');
+        setError(result.message || 'Failed to delete notification');
       }
     } catch (error) {
       console.error('Error deleting notification:', error);
-      alert('Error deleting notification. Please try again.');
+      setError('Error deleting notification. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -124,14 +145,14 @@ const VendorNotifications = () => {
 
     try {
       setIsDeleting(true);
+      setError(null);
       const vendorId = localStorage.getItem('vendorId');
       
       if (!vendorId) {
-        alert('Vendor ID not found');
+        setError('Vendor ID not found');
         return;
       }
 
-      // API call for bulk delete
       const response = await fetch(`https://api.vegiffyy.com/api/vendor/deletenotification/${vendorId}`, {
         method: 'DELETE',
         headers: {
@@ -160,13 +181,13 @@ const VendorNotifications = () => {
         setShowDeleteConfirm(false);
         
         // Show success message
-        alert(result.message);
+        alert(result.message || 'Notifications deleted successfully');
       } else {
-        alert(result.message || 'Failed to delete notifications');
+        setError(result.message || 'Failed to delete notifications');
       }
     } catch (error) {
       console.error('Error deleting notifications:', error);
-      alert('Error deleting notifications. Please try again.');
+      setError('Error deleting notifications. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -324,7 +345,14 @@ const VendorNotifications = () => {
           </div>
         </div>
 
-        {/* Action Bar - NO MARK AS READ BUTTONS */}
+        {/* Error Message Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-6">
+            <p className="text-sm">{error}</p>
+          </div>
+        )}
+
+        {/* Action Bar - REMOVED REFRESH BUTTON */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex-1">
@@ -357,14 +385,6 @@ const VendorNotifications = () => {
                   <span>Delete Selected ({selectedNotifications.length})</span>
                 </button>
               )}
-              
-              <button
-                onClick={fetchNotifications}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <FiBell className="w-4 h-4" />
-                <span>Refresh</span>
-              </button>
             </div>
           </div>
         </div>
@@ -531,7 +551,7 @@ const VendorNotifications = () => {
           )}
         </div>
 
-        {/* Notification Details Modal - NO MARK AS READ BUTTON */}
+        {/* Notification Details Modal */}
         {showNotificationModal && selectedNotification && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -690,17 +710,14 @@ const VendorNotifications = () => {
                             <h5 className="font-medium text-gray-900 mb-3">Delivery Address</h5>
                             <div className="p-4 bg-gray-50 rounded-lg">
                               <p className="font-medium text-gray-900">
-                                {selectedNotification.data.deliveryAddress.name}
+                                {selectedNotification.data.deliveryAddress.street || 'N/A'}
                               </p>
                               <p className="text-gray-600 mt-1">
-                                {selectedNotification.data.deliveryAddress.address}
+                                {selectedNotification.data.deliveryAddress.city}, {selectedNotification.data.deliveryAddress.state}
                               </p>
                               <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                                <span>{selectedNotification.data.deliveryAddress.city}</span>
-                                <span>{selectedNotification.data.deliveryAddress.pincode}</span>
-                                {selectedNotification.data.deliveryAddress.phone && (
-                                  <span>{selectedNotification.data.deliveryAddress.phone}</span>
-                                )}
+                                <span>{selectedNotification.data.deliveryAddress.postalCode}</span>
+                                <span>{selectedNotification.data.deliveryAddress.country}</span>
                               </div>
                             </div>
                           </div>
@@ -708,21 +725,9 @@ const VendorNotifications = () => {
                       </div>
                     </div>
                   )}
-
-                  {/* Raw Data (for debugging) */}
-                  {process.env.NODE_ENV === 'development' && (
-                    <div className="mt-6">
-                      <details>
-                        <summary className="cursor-pointer text-sm text-gray-500">View Raw Data</summary>
-                        <pre className="mt-2 p-4 bg-gray-100 rounded-lg text-xs overflow-auto max-h-60">
-                          {JSON.stringify(selectedNotification, null, 2)}
-                        </pre>
-                      </details>
-                    </div>
-                  )}
                 </div>
 
-                {/* Action Buttons - NO MARK AS READ BUTTON */}
+                {/* Action Buttons */}
                 <div className="mt-6 flex justify-between">
                   <div className="flex space-x-3">
                     {/* Delete Button in Modal */}

@@ -6,6 +6,7 @@ const VendorSupport = () => {
   const [phone, setPhone] = useState('9391950503');
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   // Copy to clipboard functions
   const copyEmailToClipboard = () => {
@@ -20,20 +21,86 @@ const VendorSupport = () => {
     setTimeout(() => setCopiedPhone(false), 2000);
   };
 
-  // Open email client
+  // Open email client - FIXED VERSION
   const sendEmail = () => {
-    window.location.href = `mailto:${email}?subject=Vendor Support&body=Hello Vegiffy Vendor Support Team,`;
+    try {
+      const vendorId = localStorage.getItem('vendorId') || 'Not logged in';
+      const restaurantName = localStorage.getItem('restaurantName') || 'Not specified';
+      
+      const subject = encodeURIComponent("Vendor Support - Vegiffy");
+      const body = encodeURIComponent(
+        `Hello Vegiffy Vendor Support Team,\n\n` +
+        `I need assistance with the following:\n\n` +
+        `Vendor ID: ${vendorId}\n` +
+        `Restaurant Name: ${restaurantName}\n\n` +
+        `Issue Description:\n` +
+        `- \n\n` +
+        `Please help me resolve this issue.\n\n` +
+        `Thank you.`
+      );
+      
+      // Create mailto link
+      const mailtoLink = `mailto:${email}?subject=${subject}&body=${body}`;
+      
+      // Use a temporary iframe to handle mailto without navigation
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = mailtoLink;
+      document.body.appendChild(iframe);
+      
+      // Remove iframe after a delay
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+      
+      // Also try opening in a new window as backup
+      window.open(mailtoLink, '_blank');
+      
+    } catch (error) {
+      console.error('Error sending email:', error);
+      setShowEmailModal(true);
+    }
   };
 
-  // Open WhatsApp
+  // Open WhatsApp - FIXED
   const openWhatsApp = () => {
-    const message = "Hello Vegiffy Vendor Support Team,";
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    try {
+      const vendorId = localStorage.getItem('vendorId') || 'Not logged in';
+      const restaurantName = localStorage.getItem('restaurantName') || 'Not specified';
+      
+      const message = `Hello Vegiffy Vendor Support Team,
+
+I need assistance with the following:
+
+Vendor ID: ${vendorId}
+Restaurant Name: ${restaurantName}
+
+Issue Description:
+- 
+
+Please help me resolve this issue.
+
+Thank you.`;
+      
+      // Open WhatsApp in new tab
+      const whatsappLink = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappLink, '_blank', 'noopener,noreferrer');
+      
+    } catch (error) {
+      console.error('Error opening WhatsApp:', error);
+      alert(`Please WhatsApp us at: ${phone}`);
+    }
   };
 
-  // Call phone
+  // Call phone - FIXED
   const callPhone = () => {
-    window.location.href = `tel:${phone}`;
+    try {
+      // Use window.location.href for tel: links (they don't cause blank screens)
+      window.location.href = `tel:${phone}`;
+    } catch (error) {
+      console.error('Error calling:', error);
+      alert(`Please call us at: ${phone}`);
+    }
   };
 
   return (
@@ -91,7 +158,7 @@ const VendorSupport = () => {
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <span className="text-lg font-bold text-gray-800 truncate">{email}</span>
                   <div className="flex items-center space-x-2">
                     <button
@@ -99,12 +166,13 @@ const VendorSupport = () => {
                       className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
                       title="Copy email"
                     >
-                      {copiedEmail ? <FaCheck /> : <FaCopy className="text-sm" />}
+                      {copiedEmail ? <FaCheck className="text-sm" /> : <FaCopy className="text-sm" />}
                     </button>
                     <button
                       onClick={sendEmail}
-                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
                     >
+                      <FaEnvelope className="text-xs" />
                       Email
                     </button>
                   </div>
@@ -125,7 +193,7 @@ const VendorSupport = () => {
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <span className="text-lg font-bold text-gray-800">{phone}</span>
                   <div className="flex items-center space-x-2">
                     <button
@@ -133,20 +201,21 @@ const VendorSupport = () => {
                       className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
                       title="Copy phone number"
                     >
-                      {copiedPhone ? <FaCheck /> : <FaCopy className="text-sm" />}
+                      {copiedPhone ? <FaCheck className="text-sm" /> : <FaCopy className="text-sm" />}
                     </button>
                     <div className="flex space-x-1">
                       <button
                         onClick={callPhone}
-                        className="px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                        className="px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
                       >
+                        <FaPhone className="text-xs" />
                         Call
                       </button>
                       <button
                         onClick={openWhatsApp}
                         className="px-3 py-2 bg-[#25D366] text-white text-sm font-medium rounded-lg hover:bg-green-600 transition-colors flex items-center space-x-1"
                       >
-                        <FaWhatsapp />
+                        <FaWhatsapp className="text-sm" />
                         <span>Chat</span>
                       </button>
                     </div>
@@ -155,8 +224,59 @@ const VendorSupport = () => {
               </div>
             </div>
 
+            {/* Email Modal - Shows when email fails */}
+            {showEmailModal && (
+              <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+                <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setShowEmailModal(false)} />
+                <div className="bg-white rounded-lg max-w-sm w-full p-6 relative z-10">
+                  <h3 className="text-lg font-semibold mb-3">📧 Email Support</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Please email us at:
+                  </p>
+                  <div className="bg-blue-50 p-3 rounded-lg mb-4">
+                    <p className="text-blue-800 font-medium break-all">{email}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={copyEmailToClipboard}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Copy Email
+                    </button>
+                    <button
+                      onClick={() => setShowEmailModal(false)}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Additional Support Options */}
+            <div className="mt-6 space-y-3">
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <h4 className="text-xs font-semibold text-gray-700 mb-2">📋 Before contacting support:</h4>
+                <ul className="text-xs text-gray-600 space-y-1">
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-500">•</span>
+                    <span>Make sure you're logged in with your vendor account</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-500">•</span>
+                    <span>Have your Vendor ID ready: <span className="font-mono bg-gray-200 px-1 rounded">{localStorage.getItem('vendorId') || 'Not logged in'}</span></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-500">•</span>
+                    <span>Describe your issue clearly with screenshots if possible</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
             {/* Footer Note */}
-            <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+            <div className="mt-4 pt-4 border-t border-gray-100 text-center">
               <p className="text-gray-500 text-xs">
                 ⏰ Response time: Within 2 hours on working days
               </p>

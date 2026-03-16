@@ -9,7 +9,6 @@ import {
   FiMapPin,
   FiDollarSign,
   FiPackage,
-  FiTruck,
   FiX,
   FiCreditCard,
   FiHome,
@@ -76,50 +75,37 @@ const VendorUserOrders = () => {
     };
   };
 
-  // Format phone number with X
   const formatPhoneNumber = (phoneNumber) => {
     if (!phoneNumber || phoneNumber === 'N/A') return 'XXXXXX';
-    
     const phoneStr = phoneNumber.toString();
     const phoneLength = phoneStr.length;
-    
     if (phoneLength <= 4) return phoneStr;
-    
     const lastFourDigits = phoneStr.slice(-4);
     const maskedPart = 'X'.repeat(phoneLength - 4);
-    
     return `${maskedPart}${lastFourDigits}`;
   };
 
-  // Format name with X
   const formatName = (firstName = '', lastName = '') => {
     if (!firstName && !lastName) return 'XXXXXX';
-    
     const firstLetter = firstName.charAt(0) || 'X';
     const formattedLastName = lastName || 'XXXX';
-    
     return `${firstLetter}. ${formattedLastName}`;
   };
 
-  // Format email with X
   const formatEmail = (email) => {
     if (!email || email === 'N/A') return 'xxxxxx@xxxxx.xxx';
-    
     const [username, domain] = email.split('@');
     if (!username || !domain) return 'xxxxxx@xxxxx.xxx';
-    
     let maskedUsername = 'X'.repeat(Math.min(username.length, 6));
     if (username.length > 1) {
       maskedUsername = username.charAt(0) + 'X'.repeat(Math.max(0, username.length - 2)) + (username.length > 1 ? username.charAt(username.length - 1) : '');
     }
-    
     const domainParts = domain.split('.');
     if (domainParts.length >= 2) {
       const maskedDomain = 'x'.repeat(Math.min(domainParts[0].length, 6));
       const extension = domainParts.slice(1).join('.');
       return `${maskedUsername}@${maskedDomain}.${extension}`;
     }
-    
     return `${maskedUsername}@xxxxx.xxx`;
   };
 
@@ -175,7 +161,6 @@ const VendorUserOrders = () => {
     }).format(amount);
   };
 
-  // Calculate statistics
   const totalOrders = filteredOrders.length;
   const totalRevenue = filteredOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
   const totalCommission = filteredOrders.reduce((sum, order) => sum + (order.commission || 0), 0);
@@ -194,8 +179,7 @@ const VendorUserOrders = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4">
-        {/* Header */}
+      <div className="max-w-7xl mx-auto px-2"> {/* Reduced left-right padding from px-4 to px-2 */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
             <div className="flex items-center space-x-4 mb-4 md:mb-0">
@@ -220,7 +204,6 @@ const VendorUserOrders = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
@@ -261,7 +244,6 @@ const VendorUserOrders = () => {
           </div>
         </div>
 
-        {/* Search Bar */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -277,7 +259,6 @@ const VendorUserOrders = () => {
           </div>
         </div>
 
-        {/* Orders Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {filteredOrders.length === 0 ? (
             <div className="text-center py-12">
@@ -289,99 +270,71 @@ const VendorUserOrders = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-sm"> {/* Added text-sm for smaller text */}
                 <thead>
                   <tr className="bg-gray-50 border-b">
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Order Details
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customer
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Contact
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Commission
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Details</th> {/* Reduced px-6 to px-4, py-4 to py-3 */}
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredOrders.map((order) => (
                     <tr key={order._id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap"> {/* Reduced px-6 to px-4, py-4 to py-3 */}
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <FiPackage className="w-5 h-5 text-blue-600" />
+                          <div className="flex-shrink-0 h-9 w-9 bg-blue-100 rounded-full flex items-center justify-center"> {/* Reduced h-10 w-10 to h-9 w-9 */}
+                            <FiPackage className="w-4 h-4 text-blue-600" /> {/* Reduced w-5 h-5 to w-4 h-4 */}
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {order.orderId}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {order.totalItems} item{order.totalItems !== 1 ? 's' : ''}
-                            </div>
+                          <div className="ml-3"> {/* Reduced ml-4 to ml-3 */}
+                            <div className="text-sm font-medium text-gray-900">{order.orderId}</div>
+                            <div className="text-xs text-gray-500">{order.totalItems} item{order.totalItems !== 1 ? 's' : ''}</div> {/* Reduced text-sm to text-xs */}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {order.customerName}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {order.customerEmail}
-                        </div>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{order.customerName}</div>
+                        <div className="text-xs text-gray-500">{order.customerEmail}</div> {/* Reduced text-sm to text-xs */}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500 flex items-center">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-xs text-gray-500 flex items-center"> {/* Reduced text-sm to text-xs */}
                           <FiPhone className="w-3 h-3 mr-1" />
                           <span className="font-mono">{order.customerPhone}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-green-600">
-                          {formatCurrency(order.totalAmount)}
-                        </div>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-sm font-semibold text-green-600">{formatCurrency(order.totalAmount)}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-blue-600">
-                          {formatCurrency(order.commission)}
-                        </div>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-sm font-semibold text-blue-600">{formatCurrency(order.commission)}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <div className="space-y-1">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.orderStatus)}`}>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.orderStatus)}`}> {/* Reduced px-2.5 to px-2 */}
                             {order.orderStatus}
                           </span>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.paymentStatus)}`}>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.paymentStatus)}`}>
                             {order.paymentStatus}
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 flex items-center">
-                          <FiCalendar className="w-4 h-4 mr-2 text-gray-400" />
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-xs text-gray-900 flex items-center"> {/* Reduced text-sm to text-xs */}
+                          <FiCalendar className="w-3 h-3 mr-1 text-gray-400" /> {/* Reduced w-4 h-4 to w-3 h-3, mr-2 to mr-1 */}
                           {order.orderDate ? new Date(order.orderDate).toLocaleDateString('en-IN') : 'N/A'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-4 py-3 whitespace-nowrap text-xs font-medium"> {/* Reduced text-sm to text-xs */}
                         <button
                           onClick={() => openOrderDetails(order)}
                           className="flex items-center space-x-1 text-orange-600 hover:text-orange-900 transition-colors"
                         >
-                          <FiEye className="w-4 h-4" />
+                          <FiEye className="w-3 h-3" /> {/* Reduced w-4 h-4 to w-3 h-3 */}
                           <span>View</span>
                         </button>
                       </td>
@@ -393,7 +346,6 @@ const VendorUserOrders = () => {
           )}
         </div>
 
-        {/* Order Details Modal */}
         {showOrderModal && selectedOrder && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -409,7 +361,6 @@ const VendorUserOrders = () => {
                 </div>
 
                 <div className="space-y-6">
-                  {/* Order Summary */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded-lg">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Customer Information</h4>
@@ -440,7 +391,6 @@ const VendorUserOrders = () => {
                     </div>
                   </div>
 
-                  {/* Revenue Breakdown */}
                   <div className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-200">
                     <h4 className="text-sm font-medium text-orange-700 mb-2 flex items-center">
                       <FiCreditCard className="w-4 h-4 mr-2" />
@@ -464,7 +414,6 @@ const VendorUserOrders = () => {
                     </div>
                   </div>
 
-                  {/* Delivery Address */}
                   {selectedOrder.deliveryAddress && (
                     <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                       <h4 className="text-sm font-medium text-blue-700 mb-2 flex items-center">
@@ -478,7 +427,6 @@ const VendorUserOrders = () => {
                     </div>
                   )}
 
-                  {/* Order Items */}
                   <div className="border rounded-lg">
                     <h4 className="text-sm font-medium text-gray-700 p-4 border-b">Order Items ({selectedOrder.totalItems})</h4>
                     <div className="p-4 space-y-3">
@@ -508,7 +456,6 @@ const VendorUserOrders = () => {
                     </div>
                   </div>
 
-                  {/* Payment & Delivery Info */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                       <h4 className="text-sm font-medium text-green-700 mb-2">Payment Information</h4>
@@ -547,13 +494,10 @@ const VendorUserOrders = () => {
                     </div>
                   </div>
 
-                  {/* Order Total */}
                   <div className="p-4 bg-gray-100 rounded-lg">
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-bold text-gray-900">Gross Order Value:</span>
-                      <span className="text-lg font-bold text-green-600">
-                        {formatCurrency(selectedOrder.totalAmount)}
-                      </span>
+                      <span className="text-lg font-bold text-green-600">{formatCurrency(selectedOrder.totalAmount)}</span>
                     </div>
                   </div>
                 </div>

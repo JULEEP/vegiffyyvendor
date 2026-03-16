@@ -10,7 +10,8 @@ import {
   FaChevronDown,
   FaChevronUp,
   FaSave,
-  FaUpload
+  FaUpload,
+  FaSpinner
 } from 'react-icons/fa';
 
 const CategoryList = () => {
@@ -18,6 +19,7 @@ const CategoryList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedCategory, setExpandedCategory] = useState(null);
+  const [processingId, setProcessingId] = useState(null);
   
   // Edit states
   const [editingCategory, setEditingCategory] = useState(null);
@@ -32,6 +34,37 @@ const CategoryList = () => {
     image: null,
     imagePreview: ''
   });
+
+  // Get subAdminId from localStorage
+  const getSubAdminId = () => {
+    try {
+      const userRole = localStorage.getItem("role");
+      if (userRole === "subadmin") {
+        return localStorage.getItem("adminId");
+      }
+      return null;
+    } catch (error) {
+      console.error("Error getting subAdminId:", error);
+      return null;
+    }
+  };
+
+  // Get user info for display
+  const getUserInfo = () => {
+    try {
+      const role = localStorage.getItem("role");
+      const name = localStorage.getItem("adminName");
+      return {
+        role: role || "unknown",
+        name: name || ""
+      };
+    } catch (error) {
+      console.error("Error getting user info:", error);
+      return { role: "unknown", name: "" };
+    }
+  };
+
+  const userInfo = getUserInfo();
 
   // Fetch categories from API
   const fetchCategories = async () => {
@@ -52,39 +85,45 @@ const CategoryList = () => {
     fetchCategories();
   }, []);
 
-  // Delete category
-  const handleDeleteCategory = async (categoryId) => {
-    if (!window.confirm('Are you sure you want to delete this category?')) {
+  // ✅ FIXED: Single delete function for both category and subcategory
+  const handleDelete = async (categoryId, subcategoryId = null) => {
+    const itemType = subcategoryId ? 'subcategory' : 'category';
+    if (!window.confirm(`Are you sure you want to delete this ${itemType}?`)) {
       return;
     }
 
+    setProcessingId(subcategoryId || categoryId);
     try {
-      const response = await axios.delete(`https://api.vegiffyy.com/api/category/${categoryId}`);
-      if (response.data.success) {
-        alert('Category deleted successfully!');
-        fetchCategories();
+      const subAdminId = getSubAdminId();
+      
+      // Prepare request config
+      const config = {};
+      
+      // If subcategory delete, add subcategoryId in body
+      if (subcategoryId) {
+        config.data = {
+          subcategoryId: subcategoryId,
+          ...(subAdminId && { subAdminId })
+        };
+      } else if (subAdminId) {
+        // If category delete and sub-admin, add subAdminId in body
+        config.data = { subAdminId };
       }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete category');
-    }
-  };
 
-  // Delete subcategory
-  const handleDeleteSubcategory = async (categoryId, subcategoryId) => {
-    if (!window.confirm('Are you sure you want to delete this subcategory?')) {
-      return;
-    }
-
-    try {
+      // ✅ SINGLE API CALL - categoryId in URL
       const response = await axios.delete(
-        `https://api.vegiffyy.com/api/category/${categoryId}/subcategory/${subcategoryId}`
+        `https://api.vegiffyy.com/api/category/${categoryId}`,
+        config
       );
+      
       if (response.data.success) {
-        alert('Subcategory deleted successfully!');
+        alert(`${itemType.charAt(0).toUpperCase() + itemType.slice(1)} deleted successfully!`);
         fetchCategories();
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete subcategory');
+      setError(err.response?.data?.message || `Failed to delete ${itemType}`);
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -123,12 +162,35 @@ const CategoryList = () => {
     }
   };
 
+  // Update category using category update API
   const handleUpdateCategory = async (categoryId) => {
+    setProcessingId(categoryId);
     try {
+      const subAdminId = getSubAdminId();
       const formData = new FormData();
+      
+      // Add category data
       formData.append('categoryName', editFormData.categoryName);
       if (editFormData.image) {
         formData.append('image', editFormData.image);
+      }
+
+      // Get existing subcategories for this category
+      const category = categories.find(c => c._id === categoryId);
+      const existingSubcategories = category.subcategories || [];
+      
+      // Prepare subcategories data - keep existing subcategories as they are
+      const subcategoriesData = existingSubcategories.map(sub => ({
+        _id: sub._id,
+        subcategoryName: sub.subcategoryName,
+        subcategoryImageUrl: sub.subcategoryImageUrl
+      }));
+      
+      // Add subcategories as JSON string
+      formData.append('subcategories', JSON.stringify(subcategoriesData));
+
+      if (subAdminId) {
+        formData.append('subAdminId', subAdminId);
       }
 
       const response = await axios.put(
@@ -146,6 +208,8 @@ const CategoryList = () => {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update category');
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -184,16 +248,49 @@ const CategoryList = () => {
     }
   };
 
+  // Update subcategory using category update API
   const handleUpdateSubcategory = async (categoryId, subcategoryId) => {
+    setProcessingId(subcategoryId);
     try {
+      const subAdminId = getSubAdminId();
       const formData = new FormData();
-      formData.append('subcategoryName', editSubcategoryFormData.subcategoryName);
+      
+      // Find the category
+      const category = categories.find(c => c._id === categoryId);
+      if (!category) return;
+
+      // Update only the specific subcategory
+      const updatedSubcategories = category.subcategories.map((sub, index) => {
+        if (sub._id === subcategoryId) {
+          return {
+            _id: sub._id,
+            subcategoryName: editSubcategoryFormData.subcategoryName,
+            subcategoryImageUrl: editSubcategoryFormData.image ? null : sub.subcategoryImageUrl
+          };
+        }
+        return {
+          _id: sub._id,
+          subcategoryName: sub.subcategoryName,
+          subcategoryImageUrl: sub.subcategoryImageUrl
+        };
+      });
+
+      // Add subcategories as JSON string
+      formData.append('subcategories', JSON.stringify(updatedSubcategories));
+
+      // Add the new subcategory image if changed
       if (editSubcategoryFormData.image) {
-        formData.append('image', editSubcategoryFormData.image);
+        // Find the index of the subcategory being updated
+        const subcategoryIndex = category.subcategories.findIndex(sub => sub._id === subcategoryId);
+        formData.append(`subcategoryImage_${subcategoryIndex}`, editSubcategoryFormData.image);
+      }
+
+      if (subAdminId) {
+        formData.append('subAdminId', subAdminId);
       }
 
       const response = await axios.put(
-        `https://api.vegiffyy.com/api/category/${categoryId}/subcategory/${subcategoryId}`,
+        `https://api.vegiffyy.com/api/category/${categoryId}`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' }
@@ -207,6 +304,8 @@ const CategoryList = () => {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update subcategory');
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -248,6 +347,14 @@ const CategoryList = () => {
               <p className="text-gray-600 mt-2">Manage your categories and subcategories</p>
             </div>
           </div>
+          {/* User Role Display */}
+          {userInfo.role === "subadmin" && (
+            <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <p className="text-sm text-purple-800">
+                <strong>Note:</strong> You are editing as Sub-Admin: <strong>{userInfo.name}</strong>
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Error Message */}
@@ -287,6 +394,9 @@ const CategoryList = () => {
                           src={editingCategory === category._id ? editFormData.imagePreview : category.imageUrl}
                           alt={category.categoryName}
                           className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                          onError={(e) => {
+                            e.target.src = "https://via.placeholder.com/64x64?text=No+Image";
+                          }}
                         />
                       </div>
                       
@@ -304,6 +414,7 @@ const CategoryList = () => {
                                 value={editFormData.categoryName}
                                 onChange={handleEditCategoryChange}
                                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="Enter category name"
                               />
                             </div>
                             <div>
@@ -321,10 +432,20 @@ const CategoryList = () => {
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleUpdateCategory(category._id)}
-                                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center gap-2"
+                                disabled={processingId === category._id}
+                                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                <FaSave className="text-sm" />
-                                Save
+                                {processingId === category._id ? (
+                                  <>
+                                    <FaSpinner className="animate-spin" />
+                                    Saving...
+                                  </>
+                                ) : (
+                                  <>
+                                    <FaSave className="text-sm" />
+                                    Save
+                                  </>
+                                )}
                               </button>
                               <button
                                 onClick={handleCancelEditCategory}
@@ -366,15 +487,25 @@ const CategoryList = () => {
                           onClick={() => handleEditCategory(category)}
                           className="p-2 text-blue-600 hover:text-blue-800 transition duration-200"
                           title="Edit Category"
+                          disabled={processingId === category._id}
                         >
-                          <FaEdit />
+                          {processingId === category._id ? (
+                            <FaSpinner className="animate-spin" />
+                          ) : (
+                            <FaEdit />
+                          )}
                         </button>
                         <button
-                          onClick={() => handleDeleteCategory(category._id)}
+                          onClick={() => handleDelete(category._id)}
                           className="p-2 text-red-600 hover:text-red-800 transition duration-200"
                           title="Delete Category"
+                          disabled={processingId === category._id}
                         >
-                          <FaTrash />
+                          {processingId === category._id ? (
+                            <FaSpinner className="animate-spin" />
+                          ) : (
+                            <FaTrash />
+                          )}
                         </button>
                       </div>
                     )}
@@ -409,6 +540,9 @@ const CategoryList = () => {
                                       src={editingSubcategory === subcategory._id ? editSubcategoryFormData.imagePreview : subcategory.subcategoryImageUrl}
                                       alt={subcategory.subcategoryName}
                                       className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                                      onError={(e) => {
+                                        e.target.src = "https://via.placeholder.com/48x48?text=No+Image";
+                                      }}
                                     />
                                   </div>
                                   
@@ -422,6 +556,7 @@ const CategoryList = () => {
                                           value={editSubcategoryFormData.subcategoryName}
                                           onChange={handleEditSubcategoryChange}
                                           className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                          placeholder="Subcategory name"
                                         />
                                         <input
                                           type="file"
@@ -433,10 +568,20 @@ const CategoryList = () => {
                                         <div className="flex gap-2">
                                           <button
                                             onClick={() => handleUpdateSubcategory(category._id, subcategory._id)}
-                                            className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 transition duration-200 flex items-center gap-1"
+                                            disabled={processingId === subcategory._id}
+                                            className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 transition duration-200 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                           >
-                                            <FaSave className="text-xs" />
-                                            Save
+                                            {processingId === subcategory._id ? (
+                                              <>
+                                                <FaSpinner className="animate-spin text-xs" />
+                                                Saving...
+                                              </>
+                                            ) : (
+                                              <>
+                                                <FaSave className="text-xs" />
+                                                Save
+                                              </>
+                                            )}
                                           </button>
                                           <button
                                             onClick={handleCancelEditSubcategory}
@@ -462,15 +607,25 @@ const CategoryList = () => {
                                       onClick={() => handleEditSubcategory(subcategory)}
                                       className="p-1 text-blue-600 hover:text-blue-800 transition duration-200"
                                       title="Edit Subcategory"
+                                      disabled={processingId === subcategory._id}
                                     >
-                                      <FaEdit className="text-sm" />
+                                      {processingId === subcategory._id ? (
+                                        <FaSpinner className="animate-spin text-sm" />
+                                      ) : (
+                                        <FaEdit className="text-sm" />
+                                      )}
                                     </button>
                                     <button
-                                      onClick={() => handleDeleteSubcategory(category._id, subcategory._id)}
+                                      onClick={() => handleDelete(category._id, subcategory._id)}
                                       className="p-1 text-red-600 hover:text-red-800 transition duration-200"
                                       title="Delete Subcategory"
+                                      disabled={processingId === subcategory._id}
                                     >
-                                      <FaTrash className="text-sm" />
+                                      {processingId === subcategory._id ? (
+                                        <FaSpinner className="animate-spin text-sm" />
+                                      ) : (
+                                        <FaTrash className="text-sm" />
+                                      )}
                                     </button>
                                   </div>
                                 )}

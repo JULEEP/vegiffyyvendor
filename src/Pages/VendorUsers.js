@@ -45,95 +45,70 @@ const VendorUsers = () => {
     }
   };
 
-  // Format phone number to show only last 4 digits
   const formatPhoneNumber = (phoneNumber) => {
     if (!phoneNumber || phoneNumber === 'N/A') return 'XXXXXX';
-    
     const phoneStr = phoneNumber.toString();
     const phoneLength = phoneStr.length;
-    
     if (phoneLength <= 4) return phoneStr;
-    
-    // Show last 4 digits, mask the rest
     const lastFourDigits = phoneStr.slice(-4);
     const maskedPart = 'X'.repeat(phoneLength - 4);
-    
     return `${maskedPart}${lastFourDigits}`;
   };
 
-  // Format name to show only first letter and last name with X
   const formatName = (firstName = '', lastName = '') => {
     if (!firstName && !lastName) return 'XXXXXX';
-    
     const firstLetter = firstName.charAt(0) || 'X';
     const formattedLastName = lastName || 'XXXX';
-    
     return `${firstLetter}. ${formattedLastName}`;
   };
 
-  // Format email to mask with X
   const formatEmail = (email) => {
     if (!email || email === 'No email') return 'xxxxxx@xxxxx.xxx';
-    
     const [username, domain] = email.split('@');
     if (!username || !domain) return 'xxxxxx@xxxxx.xxx';
-    
-    // Mask username (keep first and last character if possible)
     let maskedUsername = 'X'.repeat(Math.min(username.length, 6));
     if (username.length > 1) {
       maskedUsername = username.charAt(0) + 'X'.repeat(Math.max(0, username.length - 2)) + (username.length > 1 ? username.charAt(username.length - 1) : '');
     }
-    
-    // Mask domain
     const domainParts = domain.split('.');
     if (domainParts.length >= 2) {
       const maskedDomain = 'x'.repeat(Math.min(domainParts[0].length, 6));
       const extension = domainParts.slice(1).join('.');
       return `${maskedUsername}@${maskedDomain}.${extension}`;
     }
-    
     return `${maskedUsername}@xxxxx.xxx`;
   };
 
-  // Format city to show only first letter with X
   const formatCity = (city) => {
     if (!city || city === 'N/A') return 'XXXXXX';
-    
     if (city.length <= 3) return 'XXX';
-    
     return city.charAt(0) + 'X'.repeat(city.length - 1);
   };
 
-  // Format referral code with X
   const formatReferralCode = (code) => {
     if (!code || code === 'N/A') return 'XXXXXX';
-    
     if (code.length <= 4) return 'XXXX';
-    
-    // Show first and last character, mask the rest
     const firstChar = code.charAt(0);
     const lastChar = code.charAt(code.length - 1);
     const maskedPart = 'X'.repeat(code.length - 2);
-    
     return `${firstChar}${maskedPart}${lastChar}`;
   };
 
-  // Format user data based on API response structure
   const formatUserData = (user) => {
     return {
       _id: user._id,
       originalFullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A',
       fullName: formatName(user.firstName || '', user.lastName || ''),
       originalEmail: user.email || 'No email',
-      email: user.email || 'No email', // This will be formatted in filteredUsers
+      email: user.email || 'No email',
       originalMobileNumber: user.phoneNumber || 'N/A',
-      mobileNumber: user.phoneNumber || 'N/A', // This will be formatted in filteredUsers
+      mobileNumber: user.phoneNumber || 'N/A',
       originalCity: user.addresses && user.addresses.length > 0 ? user.addresses[0].city : 'N/A',
-      city: user.addresses && user.addresses.length > 0 ? user.addresses[0].city : 'N/A', // This will be formatted in filteredUsers
+      city: user.addresses && user.addresses.length > 0 ? user.addresses[0].city : 'N/A',
       joinDate: user.createdAt,
       status: user.isVerified ? 'verified' : 'pending',
       originalReferralCode: user.referralCode || 'N/A',
-      referralCode: user.referralCode || 'N/A' // This will be formatted in filteredUsers
+      referralCode: user.referralCode || 'N/A'
     };
   };
 
@@ -156,7 +131,6 @@ const VendorUsers = () => {
     }));
 
   const openUserDetails = (user) => {
-    // For modal, show masked data
     const userWithMaskedData = {
       ...user,
       fullName: formatName(user.originalFullName.split(' ')[0] || '', user.originalFullName.split(' ')[1] || ''),
@@ -187,123 +161,100 @@ const VendorUsers = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4">
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-            <div className="flex items-center space-x-4 mb-4 md:mb-0">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <FiUsers className="w-6 h-6 text-blue-600" />
+            <div className="flex items-center space-x-3 mb-3 md:mb-0">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <FiUsers className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Restaurant Customers</h1>
-                <p className="text-gray-600">Users who ordered from your restaurant</p>
+                <h1 className="text-xl font-bold text-gray-900">Restaurant Customers</h1>
+                <p className="text-sm text-gray-600">Users who ordered from your restaurant</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-bold text-blue-600">{filteredUsers.length}</p>
-              <p className="text-sm text-gray-600">Total Customers</p>
+              <p className="text-2xl font-bold text-blue-600">{filteredUsers.length}</p>
+              <p className="text-xs text-gray-600">Total Customers</p>
             </div>
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <FiSearch className="text-gray-400" />
             </div>
             <input
               type="text"
-              placeholder="Search customers by name, email, mobile, city or referral code..."
+              placeholder="Search customers..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             />
           </div>
         </div>
 
-        {/* Users Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {filteredUsers.length === 0 ? (
-            <div className="text-center py-12">
-              <FiUsers className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No customers found</h3>
-              <p className="text-gray-500">
+            <div className="text-center py-8">
+              <FiUsers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <h3 className="text-base font-medium text-gray-900 mb-1">No customers found</h3>
+              <p className="text-sm text-gray-500">
                 {searchTerm ? 'No customers match your search' : 'No customers have ordered from your restaurant yet'}
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full table-auto">
                 <thead>
                   <tr className="bg-gray-50 border-b">
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customer Details
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Contact
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Location
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Join Date
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Referral Code
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Join Date</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Referral</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredUsers.map((user) => (
                     <tr key={user._id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <FiUser className="w-5 h-5 text-blue-600" />
+                          <div className="flex-shrink-0 h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <FiUser className="w-4 h-4 text-blue-600" />
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {user.fullName}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {user.email}
-                            </div>
+                          <div className="ml-2">
+                            <div className="text-xs font-medium text-gray-900">{user.fullName}</div>
+                            <div className="text-xs text-gray-500">{user.email}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 flex items-center">
-                          <FiPhone className="w-4 h-4 mr-2 text-gray-400" />
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <div className="text-xs text-gray-900 flex items-center">
+                          <FiPhone className="w-3 h-3 mr-1 text-gray-400" />
                           <span className="font-mono">{user.mobileNumber}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 flex items-center">
-                          <FiMapPin className="w-4 h-4 mr-2 text-gray-400" />
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <div className="text-xs text-gray-900 flex items-center">
+                          <FiMapPin className="w-3 h-3 mr-1 text-gray-400" />
                           {user.city}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 flex items-center">
-                          <FiCalendar className="w-4 h-4 mr-2 text-gray-400" />
-                          {user.joinDate ? new Date(user.joinDate).toLocaleDateString('en-IN') : 'N/A'}
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <div className="text-xs text-gray-900 flex items-center">
+                          <FiCalendar className="w-3 h-3 mr-1 text-gray-400" />
+                          {user.joinDate ? new Date(user.joinDate).toLocaleDateString('en-IN', {day: '2-digit', month: '2-digit', year: 'numeric'}) : 'N/A'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 font-mono">
-                          {user.referralCode}
-                        </div>
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <div className="text-xs text-gray-900 font-mono">{user.referralCode}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                           user.status === 'verified' 
                             ? 'bg-green-100 text-green-800'
                             : user.status === 'pending'
@@ -313,12 +264,12 @@ const VendorUsers = () => {
                           {user.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-3 py-3 whitespace-nowrap text-xs font-medium">
                         <button
                           onClick={() => openUserDetails(user)}
                           className="flex items-center space-x-1 text-blue-600 hover:text-blue-900 transition-colors"
                         >
-                          <FiEye className="w-4 h-4" />
+                          <FiEye className="w-3 h-3" />
                           <span>View</span>
                         </button>
                       </td>
@@ -330,90 +281,79 @@ const VendorUsers = () => {
           )}
         </div>
 
-        {/* User Details Modal */}
         {showUserModal && selectedUser && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-6">
-                  <h3 className="text-xl font-bold text-gray-900">Customer Details</h3>
+              <div className="p-5">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-lg font-bold text-gray-900">Customer Details</h3>
                   <button
                     onClick={closeUserDetails}
                     className="text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    <FiX className="w-6 h-6" />
+                    <FiX className="w-5 h-5" />
                   </button>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex-shrink-0 h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <FiUser className="w-6 h-6 text-blue-600" />
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <FiUser className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <h4 className="text-lg font-semibold text-gray-900">
-                        {selectedUser.fullName}
-                      </h4>
-                      <p className="text-gray-600">{selectedUser.email}</p>
+                      <h4 className="text-base font-semibold text-gray-900">{selectedUser.fullName}</h4>
+                      <p className="text-xs text-gray-600">{selectedUser.email}</p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3">
-                    <div className="flex items-center space-x-3 p-3 bg-white border rounded-lg">
-                      <FiPhone className="w-5 h-5 text-gray-400" />
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="flex items-center space-x-2 p-2 bg-white border rounded-lg">
+                      <FiPhone className="w-4 h-4 text-gray-400" />
                       <div>
-                        <p className="text-sm text-gray-500">Mobile Number</p>
-                        <p className="font-medium text-gray-900 font-mono">
-                          {selectedUser.mobileNumber}
+                        <p className="text-xs text-gray-500">Mobile Number</p>
+                        <p className="text-sm font-medium text-gray-900 font-mono">{selectedUser.mobileNumber}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 p-2 bg-white border rounded-lg">
+                      <FiMail className="w-4 h-4 text-gray-400" />
+                      <div>
+                        <p className="text-xs text-gray-500">Email</p>
+                        <p className="text-sm font-medium text-gray-900">{selectedUser.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 p-2 bg-white border rounded-lg">
+                      <FiMapPin className="w-4 h-4 text-gray-400" />
+                      <div>
+                        <p className="text-xs text-gray-500">Location</p>
+                        <p className="text-sm font-medium text-gray-900">{selectedUser.city}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 p-2 bg-white border rounded-lg">
+                      <FiCalendar className="w-4 h-4 text-gray-400" />
+                      <div>
+                        <p className="text-xs text-gray-500">Join Date</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {selectedUser.joinDate ? new Date(selectedUser.joinDate).toLocaleDateString('en-IN', {day: '2-digit', month: '2-digit', year: 'numeric'}) : 'N/A'}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-3 p-3 bg-white border rounded-lg">
-                      <FiMail className="w-5 h-5 text-gray-400" />
+                    <div className="flex items-center space-x-2 p-2 bg-white border rounded-lg">
+                      <FiUser className="w-4 h-4 text-gray-400" />
                       <div>
-                        <p className="text-sm text-gray-500">Email</p>
-                        <p className="font-medium text-gray-900">
-                          {selectedUser.email}
-                        </p>
+                        <p className="text-xs text-gray-500">Referral Code</p>
+                        <p className="text-sm font-medium text-gray-900 font-mono">{selectedUser.referralCode}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-3 p-3 bg-white border rounded-lg">
-                      <FiMapPin className="w-5 h-5 text-gray-400" />
+                    <div className="flex items-center space-x-2 p-2 bg-white border rounded-lg">
+                      <FiUser className="w-4 h-4 text-gray-400" />
                       <div>
-                        <p className="text-sm text-gray-500">Location</p>
-                        <p className="font-medium text-gray-900">
-                          {selectedUser.city}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-3 p-3 bg-white border rounded-lg">
-                      <FiCalendar className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm text-gray-500">Join Date</p>
-                        <p className="font-medium text-gray-900">
-                          {selectedUser.joinDate ? new Date(selectedUser.joinDate).toLocaleDateString('en-IN') : 'N/A'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-3 p-3 bg-white border rounded-lg">
-                      <FiUser className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm text-gray-500">Referral Code</p>
-                        <p className="font-medium text-gray-900 font-mono">
-                          {selectedUser.referralCode}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-3 p-3 bg-white border rounded-lg">
-                      <FiUser className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm text-gray-500">Status</p>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        <p className="text-xs text-gray-500">Status</p>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                           selectedUser.status === 'verified' 
                             ? 'bg-green-100 text-green-800'
                             : selectedUser.status === 'pending'
@@ -427,10 +367,10 @@ const VendorUsers = () => {
                   </div>
                 </div>
 
-                <div className="mt-6 flex justify-end">
+                <div className="mt-4 flex justify-end">
                   <button
                     onClick={closeUserDetails}
-                    className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    className="px-3 py-1.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
                   >
                     Close
                   </button>
