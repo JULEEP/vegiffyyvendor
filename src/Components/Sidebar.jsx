@@ -438,6 +438,11 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
       name: "Support",
       path: "/support",
     },
+     {
+      icon: <i className="ri-chat-3-fill text-white"></i>,
+      name: "Reel",
+      path: "/createreel",
+    },
     {
       icon: <i className="ri-information-fill text-white"></i>,
       name: "About Us",
