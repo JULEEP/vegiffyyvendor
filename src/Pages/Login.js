@@ -409,7 +409,7 @@ const LoginPage = () => {
 
   const renderOtpVerification = () => (
     <form onSubmit={handleVerifyOtp} className="space-y-5">
-      {storedOtp && (
+      {/* {storedOtp && (
         <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border border-yellow-200 rounded p-2">
           <div className="flex items-center justify-between">
             <div>
@@ -423,7 +423,7 @@ const LoginPage = () => {
             </button>
           </div>
         </div>
-      )}
+      )} */}
 
       <div>
         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded p-2 text-center">

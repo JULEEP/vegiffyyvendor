@@ -598,7 +598,7 @@ const MyWallet = () => {
                       No bank accounts found. Please add a bank account first.
                     </p>
                     <a 
-                      href="/vendor/accounts" 
+                      href="/account" 
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center mt-2"
                     >
                       <FiUser className="mr-1" />

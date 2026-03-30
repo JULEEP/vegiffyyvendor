@@ -28,9 +28,12 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
   const [prevNotificationCount, setPrevNotificationCount] = useState(0);
   const [isPlayingNotificationSound, setIsPlayingNotificationSound] = useState(false);
   
+  const [statusToast, setStatusToast] = useState(null);
+
   const navigate = useNavigate();
   const notificationSoundRef = useRef(null);
   const notificationCheckInterval = useRef(null);
+  const statusRefreshInterval = useRef(null);
 
   useEffect(() => {
     const storedVendorId = localStorage.getItem('vendorId');
@@ -38,7 +41,7 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
     
     if (storedVendorId) {
       setVendorId(storedVendorId);
-      fetchVendorStatus(storedVendorId);
+      fetchVendorStatus(storedVendorId);      // ✅ initial fetch
       fetchNotificationCount(storedVendorId);
     }
     
@@ -48,22 +51,46 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
     }
 
     updateTimeAndGreeting();
-    const interval = setInterval(updateTimeAndGreeting, 60000);
+    const timeInterval = setInterval(updateTimeAndGreeting, 60000);
 
-    // Setup notification check interval every 2 minutes
+    // Refresh notifications every 2 minutes
     notificationCheckInterval.current = setInterval(() => {
       if (vendorId) {
         fetchNotificationCount(vendorId);
       }
-    }, 120000); // Check every 2 minutes
+    }, 120000);
 
-    return () => {
-      clearInterval(interval);
-      if (notificationCheckInterval.current) {
-        clearInterval(notificationCheckInterval.current);
+    // Refresh vendor status every 30 seconds
+    if (storedVendorId) {
+      statusRefreshInterval.current = setInterval(() => {
+        fetchVendorStatus(storedVendorId);
+      }, 30000);
+    }
+
+    // Refresh when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && storedVendorId) {
+        fetchVendorStatus(storedVendorId);
+        fetchNotificationCount(storedVendorId);
       }
     };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(timeInterval);
+      if (notificationCheckInterval.current) clearInterval(notificationCheckInterval.current);
+      if (statusRefreshInterval.current) clearInterval(statusRefreshInterval.current);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [vendorId]);
+
+  // Auto-hide status toast
+  useEffect(() => {
+    if (statusToast) {
+      const timer = setTimeout(() => setStatusToast(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [statusToast]);
 
   const updateTimeAndGreeting = () => {
     const now = new Date();
@@ -81,14 +108,31 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
     setCurrentTime(timeString);
   };
 
+  // ✅ FIXED: Correctly read status from API response
   const fetchVendorStatus = async (id) => {
+    if (!id) return;
     try {
       const response = await axios.get(`https://api.vegiffyy.com/api/vendor/vendorstatus/${id}`);
+      console.log("🔍 Vendor status API response:", response.data);
+      
       if (response.data.success) {
-        setVendorStatus(response.data.vendor.status);
+        // ✅ Handle both response structures:
+        // 1. { success: true, status: "active" }
+        // 2. { success: true, vendor: { status: "active" } }
+        let newStatus = response.data.status;
+        if (!newStatus && response.data.vendor) {
+          newStatus = response.data.vendor.status;
+        }
+        
+        if (newStatus) {
+          console.log(`✅ Setting vendor status to: ${newStatus}`);
+          setVendorStatus(newStatus);
+        } else {
+          console.warn("⚠️ No status field found in response");
+        }
       }
     } catch (error) {
-      console.error("Error fetching vendor status:", error);
+      console.error("❌ Error fetching vendor status:", error);
     }
   };
 
@@ -100,9 +144,7 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
       if (result.success) {
         const unreadCount = result.data?.filter(n => !n.isRead)?.length || 0;
         
-        // Check if new notifications arrived
         if (unreadCount > prevNotificationCount) {
-          // Play notification sound
           playNotificationSound();
         }
         
@@ -114,26 +156,20 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
     }
   };
 
-  // Play notification sound
   const playNotificationSound = () => {
     if (notificationSoundRef.current) {
       notificationSoundRef.current.play().catch(e => {
         console.log("Notification sound play failed:", e);
-        // Fallback to beep sound
         playFallbackSound();
       });
       setIsPlayingNotificationSound(true);
-      
-      // Also speak using Web Speech API
       speakNotificationText();
-      
       setTimeout(() => setIsPlayingNotificationSound(false), 2000);
     } else {
       playFallbackSound();
     }
   };
 
-  // Fallback beep sound
   const playFallbackSound = () => {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
@@ -152,7 +188,6 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
     oscillator.stop(audioContext.currentTime + 0.5);
   };
 
-  // Speak notification using Web Speech API
   const speakNotificationText = () => {
     if ('speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance("You have a new notification. Please check!");
@@ -168,17 +203,10 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
         voice.lang.includes('en-IN')
       );
       
-      if (femaleVoice) {
-        utterance.voice = femaleVoice;
-      }
+      if (femaleVoice) utterance.voice = femaleVoice;
       
-      // Stop any ongoing speech
       speechSynthesis.cancel();
-      
-      // Speak after 500ms delay
-      setTimeout(() => {
-        speechSynthesis.speak(utterance);
-      }, 500);
+      setTimeout(() => speechSynthesis.speak(utterance), 500);
     }
   };
 
@@ -195,9 +223,14 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
       
       if (response.data.success) {
         setVendorStatus(newStatus);
+        const statusMessage = newStatus === 'active' 
+          ? '✅ Vendor Status: ACTIVE - Your store is now online!' 
+          : '⛔ Vendor Status: INACTIVE - Your store is now offline!';
+        setStatusToast(statusMessage);
       }
     } catch (error) {
       console.error("Error updating vendor status:", error);
+      setStatusToast('❌ Failed to update vendor status. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -220,7 +253,6 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
   };
 
   const handleNotificationClick = () => {
-    // Reset notification count to 0 when clicked
     setNotificationCount(0);
     setPrevNotificationCount(0);
     navigate('/notification');
@@ -228,29 +260,31 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
 
   return (
     <>
-      {/* Hidden audio element for notification sound */}
       <audio 
         ref={notificationSoundRef} 
         preload="auto"
         src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3"
       />
       
+      {statusToast && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[100] animate-bounce-in">
+          <div className="bg-gray-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border-l-4 border-green-500">
+            <div className="text-sm font-medium">{statusToast}</div>
+            <button onClick={() => setStatusToast(null)} className="text-gray-300 hover:text-white text-lg leading-none">✕</button>
+          </div>
+        </div>
+      )}
+
       <nav className="bg-gradient-to-r from-green-600 via-green-700 to-emerald-600 border-b border-green-500 sticky top-0 w-full px-5 py-3 flex items-center justify-between shadow-lg z-50">
-        {/* Left Side - Perfect Size */}
+        {/* Left Side */}
         <div className="flex items-center gap-4">
-          {/* Sidebar Toggle */}
           <button 
             onClick={() => setIsCollapsed(!isCollapsed)} 
             className="p-2 rounded-xl bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm transition-all duration-200 text-white hover:scale-105 shadow-md"
           >
-            {isCollapsed ? (
-              <RiMenu2Line className="text-base" />
-            ) : (
-              <RiMenu3Line className="text-base" />
-            )}
+            {isCollapsed ? <RiMenu2Line className="text-base" /> : <RiMenu3Line className="text-base" />}
           </button>
 
-          {/* Vendor Info */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-white bg-opacity-20 rounded-lg backdrop-blur-sm">
@@ -269,15 +303,12 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
               </div>
             </div>
 
-            {/* Toggle Switch */}
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleVendorStatus}
                 disabled={isLoading}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-200 ${
-                  vendorStatus === 'active' 
-                    ? 'bg-green-300 hover:bg-green-200' 
-                    : 'bg-gray-300 hover:bg-gray-200'
+                  vendorStatus === 'active' ? 'bg-green-300 hover:bg-green-200' : 'bg-gray-300 hover:bg-gray-200'
                 } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer shadow-inner'}`}
               >
                 <span
@@ -286,48 +317,36 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
                   }`}
                 />
               </button>
-              {isLoading && (
-                <div className="w-3 h-3 border-t border-white border-solid rounded-full animate-spin"></div>
-              )}
+              {isLoading && <div className="w-3 h-3 border-t border-white border-solid rounded-full animate-spin"></div>}
             </div>
           </div>
         </div>
 
-        {/* Center Section - OPTIMAL SIZE WITHDRAWAL MESSAGE */}
+        {/* Center Section - Withdrawal Message */}
         <div className="flex-1 mx-6 flex justify-center">
           <div className="w-full max-w-2xl">
-            {/* PERFECT SIZE WITHDRAWAL MESSAGE */}
             <div className="relative group">
-              {/* Main Container */}
               <div className="flex items-center justify-center gap-3 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-purple-500 to-indigo-600 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.01]">
-                {/* Left Icon */}
                 <div className="relative">
                   <RiBankCardLine className="text-white text-base drop-shadow" />
                   <div className="absolute -inset-1 bg-purple-300 rounded-full blur opacity-30"></div>
                 </div>
 
-                {/* Center Text */}
                 <div className="text-center flex flex-col items-center px-2">
-                  {/* Main Heading */}
                   <div className="flex items-center gap-2 mb-0.5">
                     <RiRefreshLine className="text-white text-sm animate-spin-slow" />
-                    <h1 className="text-white font-bold text-sm tracking-wide uppercase">
-                      Withdrawal Every
-                    </h1>
+                    <h1 className="text-white font-bold text-sm tracking-wide uppercase">Withdrawal Every</h1>
                     <RiRefreshLine className="text-white text-sm animate-spin-slow reverse" />
                   </div>
                   
-                  {/* Sub Heading */}
                   <div className="flex items-center gap-1.5">
                     <RiTimeLine className="text-white text-xs" />
                     <p className="text-white font-semibold text-sm">
-                      <span className="text-purple-100 font-bold mx-1 text-sm bg-white bg-opacity-15 px-1.5 py-0.5 rounded">72</span>
-                      Hours
+                      <span className="text-purple-100 font-bold mx-1 text-sm bg-white bg-opacity-15 px-1.5 py-0.5 rounded">72</span> Hours
                     </p>
                     <RiTimeLine className="text-white text-xs" />
                   </div>
                   
-                  {/* Timer Display */}
                   <div className="mt-1 px-2 py-0.5 bg-white bg-opacity-15 rounded-full backdrop-blur-sm">
                     <p className="text-white text-xs font-medium">
                       Next: <span className="font-bold text-purple-100">24h 36m</span>
@@ -335,30 +354,21 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
                   </div>
                 </div>
 
-                {/* Right Icon */}
                 <div className="relative">
                   <RiWalletLine className="text-white text-base drop-shadow" />
                   <div className="absolute -inset-1 bg-indigo-300 rounded-full blur opacity-30"></div>
                 </div>
 
-                {/* Animated Border */}
                 <div className="absolute inset-0 rounded-xl border border-purple-300 border-opacity-40"></div>
               </div>
 
-              {/* Hover Info Card */}
               <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-72 px-3 py-2 bg-gray-900 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 shadow-xl">
                 <div className="text-center">
                   <h3 className="font-bold text-purple-300 text-sm mb-1">💡 Important Information</h3>
-                  <p className="text-xs text-gray-200">
-                    You can withdraw your earnings once every 72 hours. This ensures secure transaction processing.
-                  </p>
+                  <p className="text-xs text-gray-200">You can withdraw your earnings once every 72 hours. This ensures secure transaction processing.</p>
                   <div className="mt-1.5 pt-1.5 border-t border-gray-700">
-                    <p className="text-[10px] text-gray-300">
-                      Last withdrawal: <span className="font-bold text-green-300">24 hours ago</span>
-                    </p>
-                    <p className="text-[10px] text-gray-300">
-                      Next available: <span className="font-bold text-purple-300">24 hours from now</span>
-                    </p>
+                    <p className="text-[10px] text-gray-300">Last withdrawal: <span className="font-bold text-green-300">24 hours ago</span></p>
+                    <p className="text-[10px] text-gray-300">Next available: <span className="font-bold text-purple-300">24 hours from now</span></p>
                   </div>
                 </div>
               </div>
@@ -366,9 +376,8 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
           </div>
         </div>
 
-        {/* Right Side - Perfect Size */}
+        {/* Right Side */}
         <div className="flex items-center gap-3">
-          {/* Notification Icon */}
           <div className="relative">
             <button 
               onClick={handleNotificationClick}
@@ -388,7 +397,6 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
                 <RiNotification3Line className="text-sm" />
               )}
               
-              {/* Notification Badge */}
               {notificationCount > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold animate-pulse">
                   {notificationCount > 9 ? '9+' : notificationCount}
@@ -397,34 +405,21 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
             </button>
           </div>
 
-          {/* Time Display */}
           <div className="flex flex-col items-end bg-white bg-opacity-10 backdrop-blur-sm rounded-lg px-3 py-1.5 border border-white border-opacity-20">
             <div className="text-white text-xs font-medium">{greeting}</div>
-            <div className="text-white text-xs font-bold bg-white bg-opacity-15 px-1.5 py-0.5 rounded-full">
-              🕒 {currentTime}
-            </div>
+            <div className="text-white text-xs font-bold bg-white bg-opacity-15 px-1.5 py-0.5 rounded-full">🕒 {currentTime}</div>
           </div>
 
-          {/* Fullscreen Toggle */}
           <button 
             onClick={toggleFullscreen}
             className="p-2 rounded-xl bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm transition-all duration-200 text-white hover:scale-105 shadow-md"
             title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
           >
-            {isFullscreen ? (
-              <RiFullscreenExitLine className="text-sm" />
-            ) : (
-              <RiFullscreenLine className="text-sm" />
-            )}
+            {isFullscreen ? <RiFullscreenExitLine className="text-sm" /> : <RiFullscreenLine className="text-sm" />}
           </button>
 
-          {/* Profile */}
           <div className="flex items-center gap-2.5 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg px-2.5 py-1.5 border border-white border-opacity-20">
-            <img
-              className="rounded-lg w-7 h-7 object-cover border border-white border-opacity-25"
-              src={VeggyfyLogo}
-              alt="Vegiffy Logo"
-            />
+            <img className="rounded-lg w-7 h-7 object-cover border border-white border-opacity-25" src={VeggyfyLogo} alt="Vegiffy Logo" />
             <div className="text-right">
               <p className="text-xs font-bold text-white tracking-wide">Vegiffy</p>
               <p className="text-[10px] text-white opacity-80">Vendor Panel</p>
@@ -442,17 +437,16 @@ const styles = `
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-
-.animate-spin-slow {
-  animation: spin-slow 4s linear infinite;
+.animate-spin-slow { animation: spin-slow 4s linear infinite; }
+.animate-spin-slow.reverse { animation: spin-slow 4s linear infinite reverse; }
+@keyframes bounceIn {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.8); }
+  70% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1); }
 }
-
-.animate-spin-slow.reverse {
-  animation: spin-slow 4s linear infinite reverse;
-}
+.animate-bounce-in { animation: bounceIn 0.3s ease-out; }
 `;
 
-// Add styles to document
 if (typeof document !== 'undefined') {
   const styleSheet = document.createElement("style");
   styleSheet.innerText = styles;
