@@ -476,8 +476,8 @@ const Dashboard = () => {
     }
     navigate('/allorders');
   };
-
-  const navigateToPendingOrders = () => {
+  // ✅ NEW: Navigate to Pending Orders page
+  const navigateToPendingOrdersPage = () => {
     if (hasActivePlan === false) {
       setShowPlanPopup(true);
       return;
@@ -1131,7 +1131,7 @@ const Dashboard = () => {
             icon={<FaClock className="text-2xl text-yellow-600" />}
             color="border-yellow-500"
             change={-5}
-            onClick={handleOpenBuffer}
+            onClick={navigateToPendingOrdersPage}
           />
           
           <StatCard
@@ -1353,13 +1353,13 @@ const Dashboard = () => {
             )}
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-semibold text-gray-800">Pending Orders</h3>
-              <button 
-                onClick={handleOpenBuffer}
-                className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                disabled={hasActivePlan === false}
-              >
-                View All
-              </button>
+             <button 
+              onClick={navigateToPendingOrdersPage}   // ✅ Changed from handleOpenBuffer
+              className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+              disabled={hasActivePlan === false}
+            >
+              View All
+            </button>
             </div>
             <div className="space-y-3">
               {bufferOrders.length > 0 ? (

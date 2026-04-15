@@ -14,13 +14,14 @@ import {
 } from "react-icons/ri";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import VeggyfyLogo from "../Images/veggifylogo.jpeg";
+// No need to import VeggyfyLogo anymore - will use vendor's image or fallback
 
 const Navbar = ({ setIsCollapsed, isCollapsed }) => {
   const [vendorStatus, setVendorStatus] = useState('active');
   const [isLoading, setIsLoading] = useState(false);
   const [vendorId, setVendorId] = useState('');
   const [vendorName, setVendorName] = useState('');
+  const [vendorImage, setVendorImage] = useState(''); // New state for vendor image URL
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
   const [greeting, setGreeting] = useState('');
@@ -41,7 +42,8 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
     
     if (storedVendorId) {
       setVendorId(storedVendorId);
-      fetchVendorStatus(storedVendorId);      // ✅ initial fetch
+      fetchVendorStatus(storedVendorId);
+      fetchVendorProfile(storedVendorId);      // ✅ NEW: Fetch full profile including image
       fetchNotificationCount(storedVendorId);
     }
     
@@ -64,6 +66,7 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
     if (storedVendorId) {
       statusRefreshInterval.current = setInterval(() => {
         fetchVendorStatus(storedVendorId);
+        fetchVendorProfile(storedVendorId);   // ✅ Also refresh profile periodically
       }, 30000);
     }
 
@@ -71,6 +74,7 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && storedVendorId) {
         fetchVendorStatus(storedVendorId);
+        fetchVendorProfile(storedVendorId);
         fetchNotificationCount(storedVendorId);
       }
     };
@@ -108,7 +112,47 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
     setCurrentTime(timeString);
   };
 
-  // ✅ FIXED: Correctly read status from API response
+  // ✅ NEW: Fetch vendor profile data (including image)
+  const fetchVendorProfile = async (id) => {
+    if (!id) return;
+    try {
+      const response = await axios.get(`https://api.vegiffyy.com/api/profile/${id}`);
+      console.log("🔍 Vendor profile API response:", response.data);
+      
+      if (response.data.success && response.data.data) {
+        const vendorData = response.data.data;
+        
+        // Set vendor name
+        if (vendorData.restaurantName) {
+          setVendorName(vendorData.restaurantName);
+        }
+        
+        // Set vendor image - handle both object { url: "..." } and string formats
+        if (vendorData.image) {
+          if (typeof vendorData.image === 'string') {
+            setVendorImage(vendorData.image);
+          } else if (vendorData.image.url) {
+            setVendorImage(vendorData.image.url);
+          } else {
+            setVendorImage('');
+          }
+        } else {
+          setVendorImage('');
+        }
+        
+        // Also store vendor data in localStorage for other components to use
+        localStorage.setItem('vendorData', JSON.stringify({
+          restaurantName: vendorData.restaurantName,
+          image: vendorData.image,
+          email: vendorData.email,
+          mobile: vendorData.mobile
+        }));
+      }
+    } catch (error) {
+      console.error("❌ Error fetching vendor profile:", error);
+    }
+  };
+
   const fetchVendorStatus = async (id) => {
     if (!id) return;
     try {
@@ -116,9 +160,6 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
       console.log("🔍 Vendor status API response:", response.data);
       
       if (response.data.success) {
-        // ✅ Handle both response structures:
-        // 1. { success: true, status: "active" }
-        // 2. { success: true, vendor: { status: "active" } }
         let newStatus = response.data.status;
         if (!newStatus && response.data.vendor) {
           newStatus = response.data.vendor.status;
@@ -418,10 +459,35 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
             {isFullscreen ? <RiFullscreenExitLine className="text-sm" /> : <RiFullscreenLine className="text-sm" />}
           </button>
 
+          {/* ✅ Updated: Show vendor logo instead of Veggyfy logo */}
           <div className="flex items-center gap-2.5 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg px-2.5 py-1.5 border border-white border-opacity-20">
-            <img className="rounded-lg w-7 h-7 object-cover border border-white border-opacity-25" src={VeggyfyLogo} alt="Vegiffy Logo" />
+            {vendorImage ? (
+              <img 
+                className="rounded-lg w-7 h-7 object-cover border border-white border-opacity-25" 
+                src={vendorImage} 
+                alt={vendorName || "Restaurant Logo"}
+                onError={(e) => {
+                  // Fallback if image fails to load
+                  e.target.onerror = null;
+                  e.target.style.display = 'none';
+                  // Show fallback icon
+                  const parent = e.target.parentElement;
+                  if (parent) {
+                    const fallbackIcon = document.createElement('div');
+                    fallbackIcon.className = 'w-7 h-7 rounded-lg bg-white bg-opacity-20 flex items-center justify-center';
+                    fallbackIcon.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>';
+                    parent.insertBefore(fallbackIcon, e.target);
+                    e.target.remove();
+                  }
+                }}
+              />
+            ) : (
+              <div className="w-7 h-7 rounded-lg bg-white bg-opacity-20 flex items-center justify-center">
+                <RiStore2Line className="text-white text-sm" />
+              </div>
+            )}
             <div className="text-right">
-              <p className="text-xs font-bold text-white tracking-wide">Vegiffy</p>
+              <p className="text-xs font-bold text-white tracking-wide">{vendorName || 'Vegiffy'}</p>
               <p className="text-[10px] text-white opacity-80">Vendor Panel</p>
             </div>
           </div>

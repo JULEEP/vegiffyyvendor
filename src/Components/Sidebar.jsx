@@ -372,14 +372,14 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
       path: "/notification",
       badge: notificationCount > 0 ? notificationCount : null
     },
-    {
-      icon: <i className="ri-folder-fill text-white"></i>,
-      name: "Categories",
-      dropdown: [
-        { name: "Add Categories", path: "/categoryform" },
-        { name: "All Categories", path: "/categorylist" },
-      ],
-    },
+    // {
+    //   icon: <i className="ri-folder-fill text-white"></i>,
+    //   name: "Categories",
+    //   dropdown: [
+    //     { name: "Add Categories", path: "/categoryform" },
+    //     { name: "All Categories", path: "/categorylist" },
+    //   ],
+    // },
     {
       icon: <i className="ri-shopping-bag-fill text-white"></i>,
       name: "Products",
