@@ -59,8 +59,8 @@ const CreateReel = () => {
     title: '',
     description: '',
     deepLink: '',
-    status: 'active',
     isHot: false
+    // status removed
   });
   const [updating, setUpdating] = useState(false);
   const [copySuccess, setCopySuccess] = useState('');
@@ -223,15 +223,15 @@ const CreateReel = () => {
     setViewModal({ show: true, reel });
   };
 
-  // ========== UPDATE REEL ==========
+  // ========== UPDATE REEL (status removed) ==========
   const openEditModal = (reel) => {
     setEditModal({ show: true, reel });
     setEditFormData({
       title: reel.title || '',
       description: reel.description || '',
       deepLink: reel.deepLink || '',
-      status: reel.status || 'active',
       isHot: reel.isHot || false
+      // status field removed
     });
   };
 
@@ -255,12 +255,12 @@ const CreateReel = () => {
     formDataObj.append('title', editFormData.title);
     formDataObj.append('description', editFormData.description);
     formDataObj.append('deepLink', editFormData.deepLink);
-    formDataObj.append('status', editFormData.status);
     formDataObj.append('isHot', editFormData.isHot);
+    // status field not sent
 
     try {
       const response = await axios.put(
-        `${API_BASE_URL}/updatereel/${editModal.reel._id}`,
+        `${API_BASE_URL}/updatereels/${editModal.reel._id}`,
         formDataObj,
         {
           headers: { 'Content-Type': 'multipart/form-data' }
@@ -628,11 +628,10 @@ const CreateReel = () => {
           </div>
         </div>
 
-        {/* ===== VIEW MODAL WITH THUMBNAIL ===== */}
+        {/* ===== VIEW MODAL (unchanged) ===== */}
         {viewModal.show && viewModal.reel && (
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] flex flex-col">
-              {/* Header */}
               <div className="p-4 border-b border-gray-200 flex justify-between items-center">
                 <h3 className="font-semibold flex items-center gap-2 text-lg">
                   <FiEye className="text-blue-600" />
@@ -646,9 +645,7 @@ const CreateReel = () => {
                 </button>
               </div>
               
-              {/* Content - Scrollable */}
               <div className="flex-1 overflow-y-auto p-6">
-                {/* Video Player */}
                 <div className="bg-black rounded-lg overflow-hidden mb-6">
                   <video 
                     src={viewModal.reel.videoUrl} 
@@ -660,7 +657,6 @@ const CreateReel = () => {
                   </video>
                 </div>
 
-                {/* THUMBNAIL SECTION - YAHAN THUMBNAIL SHOW HOGA */}
                 {viewModal.reel.thumbUrl && (
                   <div className="mb-6">
                     <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
@@ -677,9 +673,7 @@ const CreateReel = () => {
                   </div>
                 )}
 
-                {/* Details Grid */}
                 <div className="space-y-4">
-                  {/* Title & Status Row */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
@@ -704,7 +698,6 @@ const CreateReel = () => {
                     </div>
                   </div>
 
-                  {/* Description */}
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
                       <FiFileText size={12} /> Description
@@ -712,7 +705,6 @@ const CreateReel = () => {
                     <p className="text-sm whitespace-pre-wrap">{viewModal.reel.description || 'No description provided'}</p>
                   </div>
 
-                  {/* Deep Link */}
                   {viewModal.reel.deepLink && (
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
@@ -729,7 +721,6 @@ const CreateReel = () => {
                     </div>
                   )}
 
-                  {/* Hot & ID Row */}
                   <div className="grid grid-cols-2 gap-4">
                     {viewModal.reel.isHot && (
                       <div className="bg-gray-50 p-3 rounded-lg">
@@ -751,7 +742,6 @@ const CreateReel = () => {
                     </div>
                   </div>
 
-                  {/* Dates */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
@@ -773,7 +763,6 @@ const CreateReel = () => {
                     </div>
                   </div>
 
-                  {/* Vendor ID */}
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
                       <FiVideo size={12} /> Vendor ID
@@ -781,7 +770,6 @@ const CreateReel = () => {
                     <p className="text-xs font-mono text-gray-600">{viewModal.reel.vendorId}</p>
                   </div>
 
-                  {/* Video URL with Copy */}
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
                       <FiLink size={12} /> Video URL
@@ -803,7 +791,6 @@ const CreateReel = () => {
                     </div>
                   </div>
 
-                  {/* Thumbnail URL if exists */}
                   {viewModal.reel.thumbUrl && (
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
@@ -829,7 +816,6 @@ const CreateReel = () => {
                 </div>
               </div>
 
-              {/* Footer */}
               <div className="p-4 border-t border-gray-200 flex justify-end">
                 <button
                   onClick={() => setViewModal({ show: false, reel: null })}
@@ -842,7 +828,7 @@ const CreateReel = () => {
           </div>
         )}
 
-        {/* ===== EDIT MODAL ===== */}
+        {/* ===== EDIT MODAL - STATUS FIELD REMOVED ===== */}
         {editModal.show && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl max-w-md w-full">
@@ -883,25 +869,15 @@ const CreateReel = () => {
                     className="w-full border border-gray-300 rounded-lg p-2 text-sm"
                   />
                 </div>
+                {/* Status select removed */}
                 <div className="flex items-center justify-between">
-                  <label className="text-sm">Status</label>
-                  <select
-                    name="status"
-                    value={editFormData.status}
-                    onChange={handleEditInputChange}
-                    className="border border-gray-300 rounded-lg p-2 text-sm"
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-                <div className="flex items-center justify-between">
-                  <label className="text-sm">Hot</label>
+                  <label className="text-sm font-medium">Mark as Hot</label>
                   <input
                     type="checkbox"
                     name="isHot"
                     checked={editFormData.isHot}
                     onChange={handleEditInputChange}
+                    className="w-5 h-5"
                   />
                 </div>
                 <div className="flex gap-2 pt-2">
