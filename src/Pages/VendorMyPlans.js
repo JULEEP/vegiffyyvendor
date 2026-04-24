@@ -42,7 +42,7 @@ const VendorMyPlans = () => {
         return;
       }
 
-      const response = await fetch(`https://api.vegiffyy.com/api/vendor/myplan/${vendorId}`);
+      const response = await fetch(`https://api.vegiffy.in/api/vendor/myplan/${vendorId}`);
       const result = await response.json();
 
       console.log('API Response:', result); // Debug log

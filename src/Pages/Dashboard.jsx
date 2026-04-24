@@ -94,7 +94,7 @@
 
 //       // Make API call to check vendor plan
 //       const response = await axios.get(
-//         `https://api.vegiffyy.com/api/vendor/myplan/${vendorId}`
+//         `https://api.vegiffy.in/api/vendor/myplan/${vendorId}`
 //       );
 
 //       console.log("Plan check response:", response.data);
@@ -188,7 +188,7 @@
 //   const fetchRestaurantOrders = async () => {
 //     try {
 //       const response = await axios.get(
-//         `https://api.vegiffyy.com/api/vendor/restaurantorders/${vendorId}`
+//         `https://api.vegiffy.in/api/vendor/restaurantorders/${vendorId}`
 //       );
       
 //       const allOrders = response.data.data || response.data || [];
@@ -230,13 +230,13 @@
 //         setLoading(true);
         
 //         const dashboardRes = await axios.get(
-//           `https://api.vegiffyy.com/api/vendor/dashboard/${vendorId}`
+//           `https://api.vegiffy.in/api/vendor/dashboard/${vendorId}`
 //         );
 
 //         const { stats, salesData, orders, pendingOrders } = dashboardRes.data;
 
 //         const productsRes = await axios.get(
-//           `https://api.vegiffyy.com/api/restaurant-products/${vendorId}`
+//           `https://api.vegiffy.in/api/restaurant-products/${vendorId}`
 //         );
 
 //         const productsData = productsRes.data.recommendedProducts || productsRes.data.data || [];
@@ -302,7 +302,7 @@
 //     const fetchProducts = async () => {
 //       try {
 //         const productsRes = await axios.get(
-//           `https://api.vegiffyy.com/api/restaurant-products/${vendorId}`
+//           `https://api.vegiffy.in/api/restaurant-products/${vendorId}`
 //         );
 //         const productsData = productsRes.data.recommendedProducts || productsRes.data.data || [];
 //         setProductsData(productsData);
@@ -323,7 +323,7 @@
 //       setIsProcessingOrder(true);
       
 //       const response = await axios.put(
-//         `https://api.vegiffyy.com/api/acceptorder/${orderId}/${vendorId}`,
+//         `https://api.vegiffy.in/api/acceptorder/${orderId}/${vendorId}`,
 //         { orderStatus: "Accepted" }
 //       );
       
@@ -393,7 +393,7 @@
 //       setIsProcessingOrder(true);
       
 //       const response = await axios.put(
-//         `https://api.vegiffyy.com/api/acceptorder/${orderId}/${vendorId}`,
+//         `https://api.vegiffy.in/api/acceptorder/${orderId}/${vendorId}`,
 //         { orderStatus: "Rejected" }
 //       );
       
@@ -1598,7 +1598,7 @@ const Dashboard = () => {
       }
 
       const response = await axios.get(
-        `https://api.vegiffyy.com/api/vendor/myplan/${vendorId}`
+        `https://api.vegiffy.in/api/vendor/myplan/${vendorId}`
       );
 
       console.log("Plan check response:", response.data);
@@ -1690,7 +1690,7 @@ const Dashboard = () => {
   const fetchRestaurantOrders = async () => {
     try {
       const response = await axios.get(
-        `https://api.vegiffyy.com/api/vendor/restaurantorders/${vendorId}`
+        `https://api.vegiffy.in/api/vendor/restaurantorders/${vendorId}`
       );
       
       const allOrders = response.data.data || response.data || [];
@@ -1732,13 +1732,13 @@ const Dashboard = () => {
         setLoading(true);
         
         const dashboardRes = await axios.get(
-          `https://api.vegiffyy.com/api/vendor/dashboard/${vendorId}`
+          `https://api.vegiffy.in/api/vendor/dashboard/${vendorId}`
         );
 
         const { stats, salesData, orders, pendingOrders } = dashboardRes.data;
 
         const productsRes = await axios.get(
-          `https://api.vegiffyy.com/api/restaurant-products/${vendorId}`
+          `https://api.vegiffy.in/api/restaurant-products/${vendorId}`
         );
 
         const productsData = productsRes.data.recommendedProducts || productsRes.data.data || [];
@@ -1806,7 +1806,7 @@ const Dashboard = () => {
     const fetchProducts = async () => {
       try {
         const productsRes = await axios.get(
-          `https://api.vegiffyy.com/api/restaurant-products/${vendorId}`
+          `https://api.vegiffy.in/api/restaurant-products/${vendorId}`
         );
         const productsData = productsRes.data.recommendedProducts || productsRes.data.data || [];
         setProductsData(productsData);
@@ -1827,7 +1827,7 @@ const Dashboard = () => {
       setIsProcessingOrder(true);
       
       const response = await axios.put(
-        `https://api.vegiffyy.com/api/acceptorder/${orderId}/${vendorId}`,
+        `https://api.vegiffy.in/api/acceptorder/${orderId}/${vendorId}`,
         { orderStatus: "Accepted" }
       );
       
@@ -1882,7 +1882,7 @@ const Dashboard = () => {
       setIsProcessingOrder(true);
       
       const response = await axios.put(
-        `https://api.vegiffyy.com/api/acceptorder/${orderId}/${vendorId}`,
+        `https://api.vegiffy.in/api/acceptorder/${orderId}/${vendorId}`,
         { orderStatus: "Rejected" }
       );
       

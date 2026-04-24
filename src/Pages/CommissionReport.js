@@ -54,7 +54,7 @@ const CommissionReport = () => {
   useEffect(() => {
     const fetchRestaurantDetails = async () => {
       try {
-        const res = await fetch(`https://api.vegiffyy.com/api/restaurant/${vendorId}`);
+        const res = await fetch(`https://api.vegiffy.in/api/restaurant/${vendorId}`);
         const data = await res.json();
         if (data.success && data.data) {
           const commission = data.data.commission || 20;
@@ -82,7 +82,7 @@ const CommissionReport = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`https://api.vegiffyy.com/api/vendor/restaurantorders/${vendorId}`);
+        const res = await fetch(`https://api.vegiffy.in/api/vendor/restaurantorders/${vendorId}`);
         if (!res.ok) throw new Error("Failed to fetch orders");
         const data = await res.json();
         

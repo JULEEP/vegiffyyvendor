@@ -109,7 +109,7 @@ const VendorJoiningFee = () => {
         return;
       }
 
-      const response = await axios.get(`https://api.vegiffyy.com/api/vendor/profile/${vendorId}`);
+      const response = await axios.get(`https://api.vegiffy.in/api/vendor/profile/${vendorId}`);
       if (response.data.success) {
         const apiData = response.data.data;
         setUserData({
@@ -149,7 +149,7 @@ const VendorJoiningFee = () => {
 
   const fetchPlans = async () => {
     try {
-      const response = await axios.get('https://api.vegiffyy.com/api/admin/vendorplans');
+      const response = await axios.get('https://api.vegiffy.in/api/admin/vendorplans');
       if (response.data.success) {
         const plansData = response.data.data || [];
         setPlans(plansData);
@@ -290,7 +290,7 @@ const VendorJoiningFee = () => {
 
       // Send bank payment request with file
       const response = await axios.post(
-        `https://api.vegiffyy.com/api/vendor/pay/${vendorId}`,
+        `https://api.vegiffy.in/api/vendor/pay/${vendorId}`,
         formData,
         {
           headers: {
@@ -393,7 +393,7 @@ const VendorJoiningFee = () => {
             console.log('🔄 UPI Payment Success:', response);
             
             const captureResponse = await axios.post(
-              `https://api.vegiffyy.com/api/vendor/pay/${vendorId}`,
+              `https://api.vegiffy.in/api/vendor/pay/${vendorId}`,
               {
                 planId: selectedPlan._id,
                 transactionId: response.razorpay_payment_id,
@@ -529,7 +529,7 @@ const VendorJoiningFee = () => {
             console.log('🔄 Payment Success:', response);
 
             const captureResponse = await axios.post(
-              `https://api.vegiffyy.com/api/vendor/pay/${vendorId}`,
+              `https://api.vegiffy.in/api/vendor/pay/${vendorId}`,
               {
                 planId: selectedPlan._id,
                 transactionId: response.razorpay_payment_id,

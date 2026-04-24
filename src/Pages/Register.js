@@ -722,7 +722,7 @@ const AddVendorForm = () => {
         timeout: 300000 // 5 minutes timeout
       };
 
-      const res = await axios.post("https://api.vegiffyy.com/api/restaurant", formData, config);
+      const res = await axios.post("https://api.vegiffy.in/api/restaurant", formData, config);
       
       if (res.data.success) {
         setMessage({ type: "success", text: "Restaurant created successfully!" });

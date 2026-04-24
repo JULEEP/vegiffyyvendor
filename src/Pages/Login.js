@@ -87,7 +87,7 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('https://api.vegiffyy.com/api/vendor/vendorlogin', {
+      const response = await axios.post('https://api.vegiffy.in/api/vendor/vendorlogin', {
         email: email.toLowerCase(),
         password
       });
@@ -141,7 +141,7 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('https://api.vegiffyy.com/api/vendor/verify-otp', {
+      const response = await axios.post('https://api.vegiffy.in/api/vendor/verify-otp', {
         vendorId,
         otp: otp
       });
@@ -182,7 +182,7 @@ const LoginPage = () => {
     setError('');
     
     try {
-      const response = await axios.post('https://api.vegiffyy.com/api/vendor/resend-otp', {
+      const response = await axios.post('https://api.vegiffy.in/api/vendor/resend-otp', {
         vendorId
       });
 

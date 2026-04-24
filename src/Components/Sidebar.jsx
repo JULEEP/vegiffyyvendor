@@ -68,7 +68,7 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
       const vendorId = localStorage.getItem("vendorId");
       if (!vendorId) return;
 
-      const response = await fetch(`https://api.vegiffyy.com/api/vendor/notification/${vendorId}`);
+      const response = await fetch(`https://api.vegiffy.in/api/vendor/notification/${vendorId}`);
       const result = await response.json();
       
       if (result.success) {
@@ -108,7 +108,7 @@ const Sidebar = ({ isCollapsed, isMobile }) => {
 
       // Make API call to check vendor plan
       const response = await axios.get(
-        `https://api.vegiffyy.com/api/vendor/myplan/${vendorId}`
+        `https://api.vegiffy.in/api/vendor/myplan/${vendorId}`
       );
 
       console.log("Plan check response:", response.data);

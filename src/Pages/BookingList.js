@@ -137,7 +137,7 @@ const BookingList = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`https://api.vegiffyy.com/api/vendor/restaurantorders/${vendorId}`);
+        const res = await fetch(`https://api.vegiffy.in/api/vendor/restaurantorders/${vendorId}`);
         if (!res.ok) throw new Error("Failed to fetch orders");
         const data = await res.json();
         if (data.success) {
@@ -601,7 +601,7 @@ const BookingList = () => {
 
       console.log("Updating order:", editBooking.bookingId, "with data:", requestBody);
 
-      const res = await fetch(`https://api.vegiffyy.com/api/acceptorder/${editBooking.bookingId}/${vendorId}`, {
+      const res = await fetch(`https://api.vegiffy.in/api/acceptorder/${editBooking.bookingId}/${vendorId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -651,7 +651,7 @@ const BookingList = () => {
     setDeleteLoading(true);
     setError(null);
     try {
-      const res = await fetch(`https://api.vegiffyy.com/api/vendor/deleteorder/${bookingId}`, {
+      const res = await fetch(`https://api.vegiffy.in/api/vendor/deleteorder/${bookingId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete order");

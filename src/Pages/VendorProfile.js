@@ -68,7 +68,7 @@ const VendorProfile = () => {
   const fetchProfileData = async () => {
     try {
       setError('');
-      const res = await axios.get(`https://api.vegiffyy.com/api/profile/${vendorId}`);
+      const res = await axios.get(`https://api.vegiffy.in/api/profile/${vendorId}`);
       
       if (res.data?.success) {
         const data = res.data.data;
@@ -147,7 +147,7 @@ const VendorProfile = () => {
       }
 
       const response = await axios.put(
-        `https://api.vegiffyy.com/api/restaurant/${vendorId}`,
+        `https://api.vegiffy.in/api/restaurant/${vendorId}`,
         formData,
         {
           headers: {
@@ -227,7 +227,7 @@ const VendorProfile = () => {
       if (docFiles.vendorAgreement) formData.append('vendorAgreement', docFiles.vendorAgreement);
 
       const response = await axios.put(
-        `https://api.vegiffyy.com/api/documents/${vendorId}`,
+        `https://api.vegiffy.in/api/documents/${vendorId}`,
         formData,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );

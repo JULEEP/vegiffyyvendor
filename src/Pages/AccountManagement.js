@@ -38,7 +38,7 @@ const AccountManagement = () => {
   });
 
   const vendorId = localStorage.getItem("vendorId");
-  const API_BASE_URL = "https://api.vegiffyy.com/api/vendor";
+  const API_BASE_URL = "https://api.vegiffy.in/api/vendor";
 
   // Show message
   const showMessage = (text, type = "success") => {
@@ -134,7 +134,7 @@ const AccountManagement = () => {
       } else {
         // Create new account
         response = await axios.post(
-          "https://api.vegiffyy.com/api/vendor/createaccounts",
+          "https://api.vegiffy.in/api/vendor/createaccounts",
           payload
         );
         showMessage("Account added successfully!");

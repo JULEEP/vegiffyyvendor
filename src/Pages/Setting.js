@@ -32,7 +32,7 @@ const Settings = ({ closeModal }) => {
     setVendorId(storedVendorId);
 
     axios
-      .get(`https://api.vegiffyy.com/api/vendor/vendorprofile/${storedVendorId}`)
+      .get(`https://api.vegiffy.in/api/vendor/vendorprofile/${storedVendorId}`)
       .then((res) => {
         const vendor = res.data.vendor;
         setRestaurantName(vendor.restaurantName || "");
@@ -82,7 +82,7 @@ const Settings = ({ closeModal }) => {
 
     try {
       const response = await axios.put(
-        `https://api.vegiffyy.com/api/vendor/update/${vendorId}`,
+        `https://api.vegiffy.in/api/vendor/update/${vendorId}`,
         formData
       );
       alert("Settings updated successfully");

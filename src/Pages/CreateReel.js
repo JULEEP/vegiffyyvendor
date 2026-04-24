@@ -67,7 +67,7 @@ const CreateReel = () => {
 
   // Constants
   const restaurantId = localStorage.getItem("vendorId");
-  const API_BASE_URL = "https://api.vegiffyy.com/api/vendor";
+  const API_BASE_URL = "https://api.vegiffy.in/api/vendor";
 
   // ========== FETCH REELS ==========
   useEffect(() => {

@@ -72,7 +72,7 @@ const CompletedBookingList = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`https://api.vegiffyy.com/api/vendor/restaurantorders/${vendorId}`);
+        const res = await fetch(`https://api.vegiffy.in/api/vendor/restaurantorders/${vendorId}`);
         if (!res.ok) throw new Error("Failed to fetch orders");
         const data = await res.json();
         console.log("API Response:", data); // Debugging

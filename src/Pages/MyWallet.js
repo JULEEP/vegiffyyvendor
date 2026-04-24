@@ -30,12 +30,12 @@ const MyWallet = () => {
   const [withdrawAmount, setWithdrawAmount] = useState('');
 
   const vendorId = localStorage.getItem("vendorId");
-  const API_BASE_URL = "https://api.vegiffyy.com/api/vendor";
+  const API_BASE_URL = "https://api.vegiffy.in/api/vendor";
 
   const fetchWalletData = async () => {
     try {
       setError('');
-      const res = await axios.get(`https://api.vegiffyy.com/api/getwallet/${vendorId}`);
+      const res = await axios.get(`https://api.vegiffy.in/api/getwallet/${vendorId}`);
       if (res.data?.success) {
         setWalletData(res.data.data);
       } else {
@@ -119,7 +119,7 @@ const MyWallet = () => {
 
     setWithdrawLoading(true);
     try {
-      const res = await axios.post(`https://api.vegiffyy.com/api/walletwithdraw/${vendorId}`, {
+      const res = await axios.post(`https://api.vegiffy.in/api/walletwithdraw/${vendorId}`, {
         amount: amount,
         accountDetails: {
           bankName: selectedAccount.bankName,

@@ -62,7 +62,7 @@ const PendingBookingList = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`https://api.vegiffyy.com/api/vendor/restaurantorders/${vendorId}`);
+        const res = await fetch(`https://api.vegiffy.in/api/vendor/restaurantorders/${vendorId}`);
         if (!res.ok) throw new Error("Failed to fetch orders");
         const data = await res.json();
         if (data.success) {
@@ -322,7 +322,7 @@ const PendingBookingList = () => {
       const vendorId = localStorage.getItem("vendorId");
       if (!vendorId) throw new Error("Vendor ID not found in localStorage");
 
-      const res = await fetch("https://api.vegiffyy.com/api/restaurantaccept-order", {
+      const res = await fetch("https://api.vegiffy.in/api/restaurantaccept-order", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -363,7 +363,7 @@ const PendingBookingList = () => {
     setDeleteLoading(true);
     setError(null);
     try {
-      const res = await fetch(`https://api.vegiffyy.com/api/vendor/deleteorder/${bookingId}`, {
+      const res = await fetch(`https://api.vegiffy.in/api/vendor/deleteorder/${bookingId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete order");

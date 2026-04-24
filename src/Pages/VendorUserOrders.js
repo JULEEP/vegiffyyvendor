@@ -34,7 +34,7 @@ const VendorUserOrders = () => {
         return;
       }
 
-      const response = await fetch(`https://api.vegiffyy.com/api/vendor/alluserorders/${vendorId}`);
+      const response = await fetch(`https://api.vegiffy.in/api/vendor/alluserorders/${vendorId}`);
       const result = await response.json();
 
       if (result.success) {

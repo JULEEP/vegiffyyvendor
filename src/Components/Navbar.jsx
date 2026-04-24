@@ -116,7 +116,7 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
   const fetchVendorProfile = async (id) => {
     if (!id) return;
     try {
-      const response = await axios.get(`https://api.vegiffyy.com/api/profile/${id}`);
+      const response = await axios.get(`https://api.vegiffy.in/api/profile/${id}`);
       console.log("🔍 Vendor profile API response:", response.data);
       
       if (response.data.success && response.data.data) {
@@ -156,7 +156,7 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
   const fetchVendorStatus = async (id) => {
     if (!id) return;
     try {
-      const response = await axios.get(`https://api.vegiffyy.com/api/vendor/vendorstatus/${id}`);
+      const response = await axios.get(`https://api.vegiffy.in/api/vendor/vendorstatus/${id}`);
       console.log("🔍 Vendor status API response:", response.data);
       
       if (response.data.success) {
@@ -179,7 +179,7 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
 
   const fetchNotificationCount = async (vendorId) => {
     try {
-      const response = await fetch(`https://api.vegiffyy.com/api/vendor/notification/${vendorId}`);
+      const response = await fetch(`https://api.vegiffy.in/api/vendor/notification/${vendorId}`);
       const result = await response.json();
       
       if (result.success) {
@@ -258,7 +258,7 @@ const Navbar = ({ setIsCollapsed, isCollapsed }) => {
     const newStatus = vendorStatus === 'active' ? 'inactive' : 'active';
     
     try {
-      const response = await axios.put(`https://api.vegiffyy.com/api/vendor/vendorstatus/${vendorId}`, {
+      const response = await axios.put(`https://api.vegiffy.in/api/vendor/vendorstatus/${vendorId}`, {
         status: newStatus
       });
       

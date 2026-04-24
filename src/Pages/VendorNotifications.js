@@ -42,7 +42,7 @@ const VendorNotifications = () => {
       }
 
       // FIXED: Removed timestamp parameter
-      const response = await fetch(`https://api.vegiffyy.com/api/vendor/notification/${vendorId}`, {
+      const response = await fetch(`https://api.vegiffy.in/api/vendor/notification/${vendorId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -102,7 +102,7 @@ const VendorNotifications = () => {
         return;
       }
 
-      const response = await fetch(`https://api.vegiffyy.com/api/vendor/deletenotification/${vendorId}`, {
+      const response = await fetch(`https://api.vegiffy.in/api/vendor/deletenotification/${vendorId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -153,7 +153,7 @@ const VendorNotifications = () => {
         return;
       }
 
-      const response = await fetch(`https://api.vegiffyy.com/api/vendor/deletenotification/${vendorId}`, {
+      const response = await fetch(`https://api.vegiffy.in/api/vendor/deletenotification/${vendorId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

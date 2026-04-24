@@ -26,7 +26,7 @@ const CreateProductForm = () => {
   const fetchCategories = async () => {
     try {
       setCategoriesLoading(true);
-      const response = await axios.get("https://api.vegiffyy.com/api/category");
+      const response = await axios.get("https://api.vegiffy.in/api/category");
       if (response.data.success) {
         setCategories(response.data.data);
       }
@@ -180,7 +180,7 @@ const CreateProductForm = () => {
 
     try {
       setLoading(true);
-      const response = await axios.post("https://api.vegiffyy.com/api/restaurant-products", formData, {
+      const response = await axios.post("https://api.vegiffy.in/api/restaurant-products", formData, {
         headers: { 
           "Content-Type": "multipart/form-data",
         },

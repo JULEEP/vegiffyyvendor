@@ -70,7 +70,7 @@ const CategoryList = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('https://api.vegiffyy.com/api/category');
+      const response = await axios.get('https://api.vegiffy.in/api/category');
       if (response.data.success) {
         setCategories(response.data.data);
       }
@@ -112,7 +112,7 @@ const CategoryList = () => {
 
       // ✅ SINGLE API CALL - categoryId in URL
       const response = await axios.delete(
-        `https://api.vegiffyy.com/api/category/${categoryId}`,
+        `https://api.vegiffy.in/api/category/${categoryId}`,
         config
       );
       
@@ -194,7 +194,7 @@ const CategoryList = () => {
       }
 
       const response = await axios.put(
-        `https://api.vegiffyy.com/api/category/${categoryId}`,
+        `https://api.vegiffy.in/api/category/${categoryId}`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' }
@@ -290,7 +290,7 @@ const CategoryList = () => {
       }
 
       const response = await axios.put(
-        `https://api.vegiffyy.com/api/category/${categoryId}`,
+        `https://api.vegiffy.in/api/category/${categoryId}`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' }
